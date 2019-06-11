@@ -31,10 +31,12 @@ public class ImageButton extends Button {
 
 	public ImageButton (Skin skin) {
 		this(skin.get(ImageButtonStyle.class));
+		setSkin(skin);
 	}
 
 	public ImageButton (Skin skin, String styleName) {
 		this(skin.get(styleName, ImageButtonStyle.class));
+		setSkin(skin);
 	}
 
 	public ImageButton (ImageButtonStyle style) {
@@ -69,7 +71,8 @@ public class ImageButton extends Button {
 		return style;
 	}
 
-	private void updateImage () {
+	/** Updates the Image with the appropriate Drawable from the style before it is drawn. */
+	protected void updateImage () {
 		Drawable drawable = null;
 		if (isDisabled() && style.imageDisabled != null)
 			drawable = style.imageDisabled;
@@ -95,6 +98,15 @@ public class ImageButton extends Button {
 
 	public Cell getImageCell () {
 		return getCell(image);
+	}
+
+	public String toString () {
+		String name = getName();
+		if (name != null) return name;
+		String className = getClass().getName();
+		int dotIndex = className.lastIndexOf('.');
+		if (dotIndex != -1) className = className.substring(dotIndex + 1);
+		return (className.indexOf('$') != -1 ? "ImageButton " : "") + className + ": " + image.getDrawable();
 	}
 
 	/** The style for an image button, see {@link ImageButton}.

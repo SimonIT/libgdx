@@ -18,6 +18,7 @@ package com.badlogic.gdx.backends.android;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -28,7 +29,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Build;
 import android.os.Handler;
+import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.service.wallpaper.WallpaperService.Engine;
 import android.view.MotionEvent;
@@ -107,27 +110,32 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	boolean[] touched = new boolean[NUM_TOUCHES];
 	int[] button = new int[NUM_TOUCHES];
 	int[] realId = new int[NUM_TOUCHES];
+	float[] pressure = new float[NUM_TOUCHES];
 	final boolean hasMultitouch;
 	private int keyCount = 0;
 	private boolean[] keys = new boolean[SUPPORTED_KEYS];
 	private boolean keyJustPressed = false;
 	private boolean[] justPressedKeys = new boolean[SUPPORTED_KEYS];
+	private boolean[] justPressedButtons = new boolean[NUM_TOUCHES];
 	private SensorManager manager;
 	public boolean accelerometerAvailable = false;
-	private final float[] accelerometerValues = new float[3];
+	protected final float[] accelerometerValues = new float[3];
+	public boolean gyroscopeAvailable = false;
+	protected final float[] gyroscopeValues = new float[3];
 	private String text = null;
 	private TextInputListener textListener = null;
 	private Handler handle;
 	final Application app;
 	final Context context;
-	private final AndroidTouchHandler touchHandler;
+	protected final AndroidTouchHandler touchHandler;
 	private int sleepTime = 0;
-	private boolean catchBack = false;
-	private boolean catchMenu = false;
+	private IntSet keysToCatch = new IntSet();
 	protected final Vibrator vibrator;
 	private boolean compassAvailable = false;
+	private boolean rotationVectorAvailable = false;
 	boolean keyboardAvailable;
-	private final float[] magneticFieldValues = new float[3];
+	protected final float[] magneticFieldValues = new float[3];
+	protected final float[] rotationVectorValues = new float[3];
 	private float azimuth = 0;
 	private float pitch = 0;
 	private float roll = 0;
@@ -135,12 +143,14 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	private boolean justTouched = false;
 	private InputProcessor processor;
 	private final AndroidApplicationConfiguration config;
-	private final Orientation nativeOrientation;
-	private long currentEventTimeStamp = System.nanoTime();
+	protected final Orientation nativeOrientation;
+	private long currentEventTimeStamp = 0;
 	private final AndroidOnscreenKeyboard onscreenKeyboard;
 
 	private SensorEventListener accelerometerListener;
+	private SensorEventListener gyroscopeListener;
 	private SensorEventListener compassListener;
+	private SensorEventListener rotationVectorListener;
 
 	public AndroidInput (Application activity, Context context, Object view, AndroidApplicationConfiguration config) {
 		// we hook into View, for LWPs we call onTouch below directly from
@@ -168,13 +178,17 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 		vibrator = (Vibrator)context.getSystemService(Context.VIBRATOR_SERVICE);
 
 		int rotation = getRotation();
-		DisplayMode mode = app.getGraphics().getDesktopDisplayMode();
+		DisplayMode mode = app.getGraphics().getDisplayMode();
 		if (((rotation == 0 || rotation == 180) && (mode.width >= mode.height))
 			|| ((rotation == 90 || rotation == 270) && (mode.width <= mode.height))) {
 			nativeOrientation = Orientation.Landscape;
 		} else {
 			nativeOrientation = Orientation.Portrait;
 		}
+
+		// this is for backward compatibility: libGDX always caught the circle button, original comment:
+		// circle button on Xperia Play shouldn't need catchBack == true
+		keysToCatch.add(Keys.BUTTON_CIRCLE);
 	}
 
 	@Override
@@ -190,6 +204,21 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	@Override
 	public float getAccelerometerZ () {
 		return accelerometerValues[2];
+	}
+	
+	@Override
+	public float getGyroscopeX () {
+		return gyroscopeValues[0];
+	}
+
+	@Override
+	public float getGyroscopeY () {
+		return gyroscopeValues[1];
+	}
+
+	@Override
+	public float getGyroscopeZ () {
+		return gyroscopeValues[2];
 	}
 
 	@Override
@@ -240,6 +269,11 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	}
 
 	@Override
+	public int getMaxPointers () {
+		return NUM_TOUCHES;
+	}
+
+	@Override
 	public int getX () {
 		synchronized (this) {
 			return touchX[0];
@@ -271,6 +305,16 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 		synchronized (this) {
 			return touched[pointer];
 		}
+	}
+
+	@Override
+	public float getPressure () {
+		return getPressure(0);
+	}
+
+	@Override
+	public float getPressure (int pointer) {
+		return pressure[pointer];
 	}
 
 	@Override
@@ -317,7 +361,12 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 
 	void processEvents () {
 		synchronized (this) {
-			justTouched = false;
+			if (justTouched) {
+				justTouched = false;
+				for (int i = 0; i < justPressedButtons.length; i++) {
+					justPressedButtons[i] = false;
+				}
+			}
 			if (keyJustPressed) {
 				keyJustPressed = false;
 				for (int i = 0; i < justPressedKeys.length; i++) {
@@ -355,6 +404,7 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 					case TouchEvent.TOUCH_DOWN:
 						processor.touchDown(e.x, e.y, e.pointer, e.button);
 						justTouched = true;
+						justPressedButtons[e.button] = true;
 						break;
 					case TouchEvent.TOUCH_UP:
 						processor.touchUp(e.x, e.y, e.pointer, e.button);
@@ -384,7 +434,7 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 				}
 			}
 
-			if (touchEvents.size() == 0) {
+			if (touchEvents.isEmpty()) {
 				for (int i = 0; i < deltaX.length; i++) {
 					deltaX[0] = 0;
 					deltaY[0] = 0;
@@ -537,11 +587,7 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 			app.getGraphics().requestRendering();
 		}
 
-		// circle button on Xperia Play shouldn't need catchBack == true
-		if (keyCode == Keys.BUTTON_CIRCLE) return true;
-		if (catchBack && keyCode == android.view.KeyEvent.KEYCODE_BACK) return true;
-		if (catchMenu && keyCode == android.view.KeyEvent.KEYCODE_MENU) return true;
-		return false;
+		return keysToCatch.contains(keyCode);
 	}
 
 	@Override
@@ -563,32 +609,52 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 
 	@Override
 	public void setCatchBackKey (boolean catchBack) {
-		this.catchBack = catchBack;
+		setCatchKey(Keys.BACK, catchBack);
 	}
 
 	@Override
 	public boolean isCatchBackKey() {
-		return catchBack;
+		return keysToCatch.contains(Keys.BACK);
 	}
 
 	@Override
 	public void setCatchMenuKey (boolean catchMenu) {
-		this.catchMenu = catchMenu;
+		setCatchKey(Keys.MENU, catchMenu);
 	}
-	
+
 	@Override
 	public boolean isCatchMenuKey () {
-		return catchMenu;
+		return keysToCatch.contains(Keys.MENU);
+	}
+
+	@Override
+	public void setCatchKey (int keycode, boolean catchKey) {
+		if (!catchKey) {
+			keysToCatch.remove(keycode);
+		} else if (catchKey) {
+			keysToCatch.add(keycode);
+		}
+	}
+
+	@Override
+	public boolean isCatchKey (int keycode) {
+		return keysToCatch.contains(keyCount);
 	}
 
 	@Override
 	public void vibrate (int milliseconds) {
-		vibrator.vibrate(milliseconds);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			vibrator.vibrate(VibrationEffect.createOneShot(milliseconds, VibrationEffect.DEFAULT_AMPLITUDE));
+		else
+			vibrator.vibrate(milliseconds);
 	}
 
 	@Override
 	public void vibrate (long[] pattern, int repeat) {
-		vibrator.vibrate(pattern, repeat);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			vibrator.vibrate(VibrationEffect.createWaveform(pattern, repeat));
+		else
+			vibrator.vibrate(pattern, repeat);
 	}
 
 	@Override
@@ -615,30 +681,42 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 		}
 	}
 
+	@Override
+	public boolean isButtonJustPressed(int button) {
+		if(button < 0 || button > NUM_TOUCHES) return false;
+		return justPressedButtons[button];
+	}
+
 	final float[] R = new float[9];
 	final float[] orientation = new float[3];
 
 	private void updateOrientation () {
-		if (SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues)) {
-			SensorManager.getOrientation(R, orientation);
-			azimuth = (float)Math.toDegrees(orientation[0]);
-			pitch = (float)Math.toDegrees(orientation[1]);
-			roll = (float)Math.toDegrees(orientation[2]);
+		if (rotationVectorAvailable){
+			SensorManager.getRotationMatrixFromVector(R, rotationVectorValues);
+		} else if (!SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues)) {
+				return; // compass + accelerometer in free fall
 		}
+		SensorManager.getOrientation(R, orientation);
+		azimuth = (float)Math.toDegrees(orientation[0]);
+		pitch = (float)Math.toDegrees(orientation[1]);
+		roll = (float)Math.toDegrees(orientation[2]);
 	}
 
 	/** Returns the rotation matrix describing the devices rotation as per <a href=
 	 * "http://developer.android.com/reference/android/hardware/SensorManager.html#getRotationMatrix(float[], float[], float[], float[])"
 	 * >SensorManager#getRotationMatrix(float[], float[], float[], float[])</a>. Does not manipulate the matrix if the platform
-	 * does not have an accelerometer.
+	 * does not have an accelerometer and compass, or a rotation vector sensor.
 	 * @param matrix */
 	public void getRotationMatrix (float[] matrix) {
-		SensorManager.getRotationMatrix(matrix, null, accelerometerValues, magneticFieldValues);
+		if (rotationVectorAvailable)
+			SensorManager.getRotationMatrixFromVector(matrix, rotationVectorValues);
+		else // compass + accelerometer
+			SensorManager.getRotationMatrix(matrix, null, accelerometerValues, magneticFieldValues);
 	}
 
 	@Override
 	public float getAzimuth () {
-		if (!compassAvailable) return 0;
+		if (!compassAvailable && !rotationVectorAvailable) return 0;
 
 		updateOrientation();
 		return azimuth;
@@ -646,7 +724,7 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 
 	@Override
 	public float getPitch () {
-		if (!compassAvailable) return 0;
+		if (!compassAvailable && !rotationVectorAvailable) return 0;
 
 		updateOrientation();
 		return pitch;
@@ -654,7 +732,7 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 
 	@Override
 	public float getRoll () {
-		if (!compassAvailable) return 0;
+		if (!compassAvailable && !rotationVectorAvailable) return 0;
 
 		updateOrientation();
 		return roll;
@@ -663,25 +741,57 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	void registerSensorListeners () {
 		if (config.useAccelerometer) {
 			manager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
-			if (manager.getSensorList(Sensor.TYPE_ACCELEROMETER).size() == 0) {
+			if (manager.getSensorList(Sensor.TYPE_ACCELEROMETER).isEmpty()) {
 				accelerometerAvailable = false;
 			} else {
 				Sensor accelerometer = manager.getSensorList(Sensor.TYPE_ACCELEROMETER).get(0);
-				accelerometerListener = new SensorListener(this.nativeOrientation, this.accelerometerValues, this.magneticFieldValues);
+				accelerometerListener = new SensorListener();
 				accelerometerAvailable = manager.registerListener(accelerometerListener, accelerometer,
-					SensorManager.SENSOR_DELAY_GAME);
+					config.sensorDelay);
 			}
 		} else
 			accelerometerAvailable = false;
+		
+		if (config.useGyroscope) {
+			manager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
+			if (manager.getSensorList(Sensor.TYPE_GYROSCOPE).isEmpty()) {
+				gyroscopeAvailable = false;
+			} else {
+				Sensor gyroscope = manager.getSensorList(Sensor.TYPE_GYROSCOPE).get(0);
+				gyroscopeListener = new SensorListener();
+				gyroscopeAvailable = manager.registerListener(gyroscopeListener, gyroscope,
+					config.sensorDelay);
+			}
+		} else
+			gyroscopeAvailable = false;
 
-		if (config.useCompass) {
+		rotationVectorAvailable = false;
+		if (config.useRotationVectorSensor){
+			if (manager == null) manager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
+			List<Sensor> rotationVectorSensors = manager.getSensorList(Sensor.TYPE_ROTATION_VECTOR);
+			if (!rotationVectorSensors.isEmpty()){
+				rotationVectorListener = new SensorListener();
+				for (Sensor sensor : rotationVectorSensors){ // favor AOSP sensor
+					if (sensor.getVendor().equals("Google Inc.") && sensor.getVersion() == 3){
+						rotationVectorAvailable = manager.registerListener(rotationVectorListener, sensor,
+							config.sensorDelay);
+						break;
+					}
+				}
+				if (!rotationVectorAvailable)
+					rotationVectorAvailable = manager.registerListener(rotationVectorListener, rotationVectorSensors.get(0),
+						config.sensorDelay);
+			}
+		}
+		
+		if (config.useCompass && !rotationVectorAvailable) {
 			if (manager == null) manager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
 			Sensor sensor = manager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 			if (sensor != null) {
 				compassAvailable = accelerometerAvailable;
 				if (compassAvailable) {
-					compassListener = new SensorListener(this.nativeOrientation, this.accelerometerValues, this.magneticFieldValues);
-					compassAvailable = manager.registerListener(compassListener, sensor, SensorManager.SENSOR_DELAY_GAME);
+					compassListener = new SensorListener();
+					compassAvailable = manager.registerListener(compassListener, sensor, config.sensorDelay);
 				}
 			} else {
 				compassAvailable = false;
@@ -696,6 +806,14 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 			if (accelerometerListener != null) {
 				manager.unregisterListener(accelerometerListener);
 				accelerometerListener = null;
+			}
+			if (gyroscopeListener != null) {
+				manager.unregisterListener(gyroscopeListener);
+				gyroscopeListener = null;
+			}
+			if (rotationVectorListener != null) {
+				manager.unregisterListener(rotationVectorListener);
+				rotationVectorListener = null;
 			}
 			if (compassListener != null) {
 				manager.unregisterListener(compassListener);
@@ -714,11 +832,20 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	@Override
 	public boolean isPeripheralAvailable (Peripheral peripheral) {
 		if (peripheral == Peripheral.Accelerometer) return accelerometerAvailable;
+		if (peripheral == Peripheral.Gyroscope) return gyroscopeAvailable;
 		if (peripheral == Peripheral.Compass) return compassAvailable;
 		if (peripheral == Peripheral.HardwareKeyboard) return keyboardAvailable;
 		if (peripheral == Peripheral.OnscreenKeyboard) return true;
-		if (peripheral == Peripheral.Vibrator) return vibrator != null;
+		if (peripheral == Peripheral.Vibrator) {
+			if (Build.VERSION.SDK_INT >= 11) {
+				return vibrator != null && vibrator.hasVibrator();
+			} else {
+				return vibrator != null;
+			}
+		}
 		if (peripheral == Peripheral.MultitouchScreen) return hasMultitouch;
+		if (peripheral == Peripheral.RotationVector) return rotationVectorAvailable;
+		if (peripheral == Peripheral.Pressure) return true;
 		return false;
 	}
 
@@ -757,11 +884,11 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 			if (realId[i] == pointerId) return i;
 		}
 
-		StringBuffer buf = new StringBuffer();
+		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < len; i++) {
-			buf.append(i + ":" + realId[i] + " ");
+			sb.append(i + ":" + realId[i] + " ");
 		}
-		Gdx.app.log("AndroidInput", "Pointer ID lookup failed: " + pointerId + ", " + buf.toString());
+		Gdx.app.log("AndroidInput", "Pointer ID lookup failed: " + pointerId + ", " + sb.toString());
 		return -1;
 	}
 
@@ -854,14 +981,9 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 	 * SensorEventListener, we add one of these for each Sensor. Could use an anonymous class, but I don't see any harm in
 	 * explicitly defining it here. Correct me if I am wrong. */
 	private class SensorListener implements SensorEventListener {
-		final float[] accelerometerValues;
-		final float[] magneticFieldValues;
-		final Orientation nativeOrientation;
-
-		SensorListener (Orientation nativeOrientation, float[] accelerometerValues, float[] magneticFieldValues) {
-			this.accelerometerValues = accelerometerValues;
-			this.magneticFieldValues = magneticFieldValues;
-			this.nativeOrientation = nativeOrientation;
+		
+		public SensorListener (){
+			
 		}
 
 		@Override
@@ -882,6 +1004,24 @@ public class AndroidInput implements Input, OnKeyListener, OnTouchListener {
 			}
 			if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
 				System.arraycopy(event.values, 0, magneticFieldValues, 0, magneticFieldValues.length);
+			}
+			if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+				if (nativeOrientation == Orientation.Portrait) {
+					System.arraycopy(event.values, 0, gyroscopeValues, 0, gyroscopeValues.length);
+				} else {
+					gyroscopeValues[0] = event.values[1];
+					gyroscopeValues[1] = -event.values[0];
+					gyroscopeValues[2] = event.values[2];
+				}
+			}
+			if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+				if (nativeOrientation == Orientation.Portrait) {
+					System.arraycopy(event.values, 0, rotationVectorValues, 0, rotationVectorValues.length);
+				} else {
+					rotationVectorValues[0] = event.values[1];
+					rotationVectorValues[1] = -event.values[0];
+					rotationVectorValues[2] = event.values[2];
+				}
 			}
 		}
 	}

@@ -25,16 +25,20 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Slider;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent;
 import com.badlogic.gdx.tests.utils.GdxTest;
 
 public class MusicTest extends GdxTest {
 
 	Music music;
-	float songDuration = 183;
+	float songDuration;
 	float currentPosition;
 
 	TextureRegion buttons;
@@ -44,11 +48,15 @@ public class MusicTest extends GdxTest {
 	Stage stage;
 	Slider slider;
 	boolean sliderUpdating = false;
+	SelectBox<Song> musicBox;
+	TextButton btLoop;
+
+	enum Song {
+		MP3, OGG, WAV
+	}
 
 	@Override
 	public void create () {
-		music = Gdx.audio.newMusic(Gdx.files.internal("data/8.12.mp3"));
-		music.play();
 
 		buttons = new TextureRegion(new Texture(Gdx.files.internal("data/playback.png")));
 		batch = new SpriteBatch();
@@ -64,9 +72,60 @@ public class MusicTest extends GdxTest {
 				if (!sliderUpdating && slider.isDragging()) music.setPosition((slider.getValue() / 100f) * songDuration);
 			}
 		});
+
+		musicBox = new SelectBox<Song>(skin);
+		musicBox.setItems(Song.values());
+		musicBox.addListener(new ChangeListener() {
+			@Override
+			public void changed (ChangeEvent event, Actor actor) {
+				setSong(musicBox.getSelected());
+			}
+		});
+
+		btLoop = new TextButton("loop", skin, "toggle");
+		btLoop.setChecked(true);
+		btLoop.addListener(new ChangeListener() {
+			@Override
+			public void changed (ChangeEvent event, Actor actor) {
+				if(music != null) music.setLooping(btLoop.isChecked());
+			}
+		});
+		
+		setSong(musicBox.getSelected());
+
+		
+		Table table = new Table(skin);
+		table.add(musicBox);
+		table.add(btLoop);
+		table.setFillParent(true);
+		stage.addActor(table);
+		
 		stage.addActor(slider);
 
 		Gdx.input.setInputProcessor(stage);
+	}
+
+	void setSong (Song song) {
+		if (music != null) {
+			music.dispose();
+		}
+		switch (song) {
+		default:
+		case MP3:
+			music = Gdx.audio.newMusic(Gdx.files.internal("data/8.12.mp3"));
+			songDuration = 183;
+			break;
+		case OGG:
+			music = Gdx.audio.newMusic(Gdx.files.internal("data/cloudconnected.ogg"));
+			songDuration = 22;
+			break;
+		case WAV:
+			music = Gdx.audio.newMusic(Gdx.files.internal("data/8.12.loop.wav"));
+			songDuration = 4;
+			break;
+		}
+		music.setLooping(btLoop.isChecked());
+		music.play();
 	}
 
 	@Override

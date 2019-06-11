@@ -26,9 +26,12 @@ import com.badlogic.gdx.utils.Array;
 
 /** A utility to output BitmapFontData to a FNT file. This can be useful for caching the result from TrueTypeFont, for faster load
  * times.
- * 
- * The font format is from the AngelCodeFont BMFont tool.
- * 
+ * <p>
+ * The font file format is from the AngelCodeFont BMFont tool.
+ * <p>
+ * Output is nearly identical to the FreeType settting in the Hiero tool {@Link com.badlogic.gdx.tools.hiero.Hiero}. BitmapFontWriter gives more flexibility, eg
+ * borders and shadows can be used. Hiero is able to avoid outputting the same glyph image more than once if multiple character
+ * codes have the exact same glyph.
  * @author mattdesl AKA davedes */
 public class BitmapFontWriter {
 
@@ -79,7 +82,8 @@ public class BitmapFontWriter {
 		public int horizontal, vertical;
 	}
 
-	/** The font "info" line; this will be ignored by LibGDX's BitmapFont reader, but useful for clean and organized output. */
+	/** The font "info" line; everything except padding and override metrics are ignored by LibGDX's BitmapFont reader, it is otherwise just useful for
+	 * clean and organized output. */
 	public static class FontInfo {
 		/** Face name */
 		public String face;
@@ -105,6 +109,16 @@ public class BitmapFontWriter {
 		public Spacing spacing = new Spacing();
 		public int outline = 0;
 
+		/** Override metrics */
+		public boolean hasOverrideMetrics;
+		public float ascent;
+		public float descent;
+		public float down;
+		public float capHeight;
+		public float lineHeight;
+		public float spaceXAdvance;
+		public float xHeight;
+
 		public FontInfo () {
 		}
 
@@ -112,6 +126,18 @@ public class BitmapFontWriter {
 			this.face = face;
 			this.size = size;
 		}
+
+		public void overrideMetrics (BitmapFontData data) {
+			hasOverrideMetrics = true;
+			ascent = data.ascent;
+			descent = data.descent;
+			down = data.down;
+			capHeight = data.capHeight;
+			lineHeight = data.lineHeight;
+			spaceXAdvance = data.spaceXadvance;
+			xHeight = data.xHeight;
+		}
+
 	}
 
 	private static String quote (Object params) {
@@ -125,11 +151,12 @@ public class BitmapFontWriter {
 			return params.toString();
 	}
 
-	/** Writes the given BitmapFontData to a file, using the specified <tt>pageRefs</tt> strings as the image paths for each texture
-	 * page. The glyphs in BitmapFontData have a "page" id, which references the index of the pageRef you specify here.
+	/** Writes the given BitmapFontData to a file, using the specified <tt>pageRefs</tt> strings as the image paths for each
+	 * texture page. The glyphs in BitmapFontData have a "page" id, which references the index of the pageRef you specify here.
 	 * 
 	 * The FontInfo parameter is useful for cleaner output; such as including a size and font face name hint. However, it can be
-	 * null to use default values. Ultimately, LibGDX ignores the "info" line when reading back fonts.
+	 * null to use default values. LibGDX ignores most of the "info" line when reading back fonts, only padding is used. Padding
+	 * also affects the size, location, and offset of the glyphs that are output.
 	 * 
 	 * Likewise, the scaleW and scaleH are only for cleaner output. They are currently ignored by LibGDX's reader. For maximum
 	 * compatibility with other BMFont tools, you should use the width and height of your texture pages (each page should be the
@@ -168,22 +195,22 @@ public class BitmapFontWriter {
 		String xmlQuote = xml ? "\"" : "";
 		String alphaChnlParams = xml ? " alphaChnl=\"0\" redChnl=\"0\" greenChnl=\"0\" blueChnl=\"0\""
 			: " alphaChnl=0 redChnl=0 greenChnl=0 blueChnl=0";
-		// INFO LINE
 
+		// INFO LINE
 		buf.append(xmlOpen).append("info face=\"").append(info.face == null ? "" : info.face.replaceAll("\"", "'"))
 			.append("\" size=").append(quote(info.size)).append(" bold=").append(quote(info.bold ? 1 : 0)).append(" italic=")
 			.append(quote(info.italic ? 1 : 0)).append(" charset=\"").append(info.charset == null ? "" : info.charset)
 			.append("\" unicode=").append(quote(info.unicode ? 1 : 0)).append(" stretchH=").append(quote(info.stretchH))
 			.append(" smooth=").append(quote(info.smooth ? 1 : 0)).append(" aa=").append(quote(info.aa)).append(" padding=")
-			.append(xmlQuote).append(info.padding.up).append(",").append(info.padding.down).append(",").append(info.padding.left)
-			.append(",").append(info.padding.right).append(xmlQuote).append(" spacing=").append(xmlQuote)
+			.append(xmlQuote).append(info.padding.up).append(",").append(info.padding.right).append(",").append(info.padding.down)
+			.append(",").append(info.padding.left).append(xmlQuote).append(" spacing=").append(xmlQuote)
 			.append(info.spacing.horizontal).append(",").append(info.spacing.vertical).append(xmlQuote).append(xmlCloseSelf)
 			.append("\n");
 
 		// COMMON line
 		buf.append(xmlOpen).append("common lineHeight=").append(quote(lineHeight)).append(" base=").append(quote(base))
-			.append(" scaleW=").append(quote(scaleW)).append(" scaleH=").append(quote(scaleH)).append(" pages=")
-			.append(quote(pages)).append(" packed=").append(quote(packed)).append(alphaChnlParams).append(xmlCloseSelf).append("\n");
+			.append(" scaleW=").append(quote(scaleW)).append(" scaleH=").append(quote(scaleH)).append(" pages=").append(quote(pages))
+			.append(" packed=").append(quote(packed)).append(alphaChnlParams).append(xmlCloseSelf).append("\n");
 
 		if (xml) buf.append("\t<pages>\n");
 
@@ -209,15 +236,26 @@ public class BitmapFontWriter {
 
 		buf.append(xmlOpen).append("chars count=").append(quote(glyphs.size)).append(xmlClose).append("\n");
 
+		int padLeft = 0, padRight = 0, padTop = 0, padX = 0, padY = 0;
+		if (info != null) {
+			padTop = info.padding.up;
+			padLeft = info.padding.left;
+			padRight = info.padding.right;
+			padX = padLeft + padRight;
+			padY = info.padding.up + info.padding.down;
+		}
+
 		// CHAR definitions
 		for (int i = 0; i < glyphs.size; i++) {
 			Glyph g = glyphs.get(i);
+			boolean empty = g.width == 0 || g.height == 0;
 			buf.append(xmlTab).append(xmlOpen).append("char id=").append(quote(String.format("%-6s", g.id), true)).append("x=")
-				.append(quote(String.format("%-5s", g.srcX), true)).append("y=").append(quote(String.format("%-5s", g.srcY), true))
-				.append("width=").append(quote(String.format("%-5s", g.width), true)).append("height=")
-				.append(quote(String.format("%-5s", g.height), true)).append("xoffset=")
-				.append(quote(String.format("%-5s", g.xoffset), true)).append("yoffset=")
-				.append(quote(String.format("%-5s", fontData.flipped ? g.yoffset : -(g.height + g.yoffset)), true))
+				.append(quote(String.format("%-5s", empty ? 0 : g.srcX), true)).append("y=")
+				.append(quote(String.format("%-5s", empty ? 0 : g.srcY), true)).append("width=")
+				.append(quote(String.format("%-5s", empty ? 0 : g.width), true)).append("height=")
+				.append(quote(String.format("%-5s", empty ? 0 : g.height), true)).append("xoffset=")
+				.append(quote(String.format("%-5s", g.xoffset - padLeft), true)).append("yoffset=")
+				.append(quote(String.format("%-5s", fontData.flipped ? g.yoffset + padTop : -(g.height + (g.yoffset + padTop))), true))
 				.append("xadvance=").append(quote(String.format("%-5s", g.xadvance), true)).append("page=")
 				.append(quote(String.format("%-5s", g.page), true)).append("chnl=").append(quote(0, true)).append(xmlCloseSelf)
 				.append("\n");
@@ -247,6 +285,26 @@ public class BitmapFontWriter {
 
 		if (xml) {
 			buf.append("\t</kernings>\n");
+		}
+
+		// Override metrics
+		if (info.hasOverrideMetrics) {
+			if (xml) buf.append("\t<metrics>\n");
+
+			buf.append(xmlTab).append(xmlOpen)
+					.append("metrics ascent=").append(quote(info.ascent, true))
+					.append(" descent=").append(quote(info.descent, true))
+					.append(" down=").append(quote(info.down, true))
+					.append(" capHeight=").append(quote(info.capHeight, true))
+					.append(" lineHeight=").append(quote(info.lineHeight, true))
+					.append(" spaceXAdvance=").append(quote(info.spaceXAdvance, true))
+					.append(" xHeight=").append(quote(info.xHeight, true))
+					.append(xmlCloseSelf).append("\n");
+
+			if (xml) buf.append("\t</metrics>\n");
+		}
+
+		if (xml) {
 			buf.append("</font>");
 		}
 
@@ -295,8 +353,7 @@ public class BitmapFontWriter {
 	 * @param fileName the file names for the output images
 	 * @return the array of string references to be used with <tt>writeFont</tt> */
 	public static String[] writePixmaps (Pixmap[] pages, FileHandle outputDir, String fileName) {
-		if (pages == null || pages.length == 0)
-			throw new IllegalArgumentException("no pixmaps supplied to BitmapFontWriter.write");
+		if (pages == null || pages.length == 0) throw new IllegalArgumentException("no pixmaps supplied to BitmapFontWriter.write");
 
 		String[] pageRefs = new String[pages.length];
 

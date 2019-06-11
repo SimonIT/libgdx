@@ -58,10 +58,10 @@ public class Group extends Actor implements Cullable {
 		if (transform) resetTransform(batch);
 	}
 
-	/** Draws all children. {@link #applyTransform(Batch, Matrix4)} should be called before and {@link #resetTransform(Batch)} after
-	 * this method if {@link #setTransform(boolean) transform} is true. If {@link #setTransform(boolean) transform} is false these
-	 * methods don't need to be called, children positions are temporarily offset by the group position when drawn. This method
-	 * avoids drawing children completely outside the {@link #setCullingArea(Rectangle) culling area}, if set. */
+	/** Draws all children. {@link #applyTransform(Batch, Matrix4)} should be called before and {@link #resetTransform(Batch)}
+	 * after this method if {@link #setTransform(boolean) transform} is true. If {@link #setTransform(boolean) transform} is false
+	 * these methods don't need to be called, children positions are temporarily offset by the group position when drawn. This
+	 * method avoids drawing children completely outside the {@link #setCullingArea(Rectangle) culling area}, if set. */
 	protected void drawChildren (Batch batch, float parentAlpha) {
 		parentAlpha *= this.color.a;
 		SnapshotArray<Actor> children = this.children;
@@ -140,10 +140,10 @@ public class Group extends Actor implements Cullable {
 		if (transform) resetTransform(shapes);
 	}
 
-	/** Draws all children. {@link #applyTransform(Batch, Matrix4)} should be called before and {@link #resetTransform(Batch)} after
-	 * this method if {@link #setTransform(boolean) transform} is true. If {@link #setTransform(boolean) transform} is false these
-	 * methods don't need to be called, children positions are temporarily offset by the group position when drawn. This method
-	 * avoids drawing children completely outside the {@link #setCullingArea(Rectangle) culling area}, if set. */
+	/** Draws all children. {@link #applyTransform(Batch, Matrix4)} should be called before and {@link #resetTransform(Batch)}
+	 * after this method if {@link #setTransform(boolean) transform} is true. If {@link #setTransform(boolean) transform} is false
+	 * these methods don't need to be called, children positions are temporarily offset by the group position when drawn. This
+	 * method avoids drawing children completely outside the {@link #setCullingArea(Rectangle) culling area}, if set. */
 	protected void drawDebugChildren (ShapeRenderer shapes) {
 		SnapshotArray<Actor> children = this.children;
 		Actor[] actors = children.begin();
@@ -181,13 +181,7 @@ public class Group extends Actor implements Cullable {
 	/** Returns the transform for this group's coordinate system. */
 	protected Matrix4 computeTransform () {
 		Affine2 worldTransform = this.worldTransform;
-
-		float originX = this.originX;
-		float originY = this.originY;
-		float rotation = this.rotation;
-		float scaleX = this.scaleX;
-		float scaleY = this.scaleY;
-
+		float originX = this.originX, originY = this.originY;
 		worldTransform.setToTrnRotScl(x + originX, y + originY, rotation, scaleX, scaleY);
 		if (originX != 0 || originY != 0) worldTransform.translate(-originX, -originY);
 
@@ -210,8 +204,8 @@ public class Group extends Actor implements Cullable {
 		batch.setTransformMatrix(transform);
 	}
 
-	/** Restores the batch transform to what it was before {@link #applyTransform(Batch, Matrix4)}. Note this causes the batch to be
-	 * flushed. */
+	/** Restores the batch transform to what it was before {@link #applyTransform(Batch, Matrix4)}. Note this causes the batch to
+	 * be flushed. */
 	protected void resetTransform (Batch batch) {
 		batch.setTransformMatrix(oldTransform);
 	}
@@ -222,6 +216,7 @@ public class Group extends Actor implements Cullable {
 	protected void applyTransform (ShapeRenderer shapes, Matrix4 transform) {
 		oldTransform.set(shapes.getTransformMatrix());
 		shapes.setTransformMatrix(transform);
+		shapes.flush();
 	}
 
 	/** Restores the shape renderer transform to what it was before {@link #applyTransform(Batch, Matrix4)}. Note this causes the
@@ -231,23 +226,25 @@ public class Group extends Actor implements Cullable {
 	}
 
 	/** Children completely outside of this rectangle will not be drawn. This is only valid for use with unrotated and unscaled
-	 * actors! */
+	 * actors.
+	 * @param cullingArea May be null. */
 	public void setCullingArea (Rectangle cullingArea) {
 		this.cullingArea = cullingArea;
 	}
 
-	/** @see #setCullingArea(Rectangle) */
+	/** @return May be null.
+	 * @see #setCullingArea(Rectangle) */
 	public Rectangle getCullingArea () {
 		return cullingArea;
 	}
 
 	public Actor hit (float x, float y, boolean touchable) {
 		if (touchable && getTouchable() == Touchable.disabled) return null;
+		if (!isVisible()) return null;
 		Vector2 point = tmp;
 		Actor[] childrenArray = children.items;
 		for (int i = children.size - 1; i >= 0; i--) {
 			Actor child = childrenArray[i];
-			if (!child.isVisible()) continue;
 			child.parentToLocalCoordinates(point.set(x, y));
 			Actor hit = child.hit(point.x, point.y, touchable);
 			if (hit != null) return hit;
@@ -259,19 +256,27 @@ public class Group extends Actor implements Cullable {
 	protected void childrenChanged () {
 	}
 
-	/** Adds an actor as a child of this group. The actor is first removed from its parent group, if any. */
+	/** Adds an actor as a child of this group, removing it from its previous parent. If the actor is already a child of this
+	 * group, no changes are made. */
 	public void addActor (Actor actor) {
-		if (actor.parent != null) actor.parent.removeActor(actor, false);
+		if (actor.parent != null) {
+			if (actor.parent == this) return;
+			actor.parent.removeActor(actor, false);
+		}
 		children.add(actor);
 		actor.setParent(this);
 		actor.setStage(getStage());
 		childrenChanged();
 	}
 
-	/** Adds an actor as a child of this group, at a specific index. The actor is first removed from its parent group, if any.
+	/** Adds an actor as a child of this group at a specific index, removing it from its previous parent. If the actor is already a
+	 * child of this group, no changes are made.
 	 * @param index May be greater than the number of children. */
 	public void addActorAt (int index, Actor actor) {
-		if (actor.parent != null) actor.parent.removeActor(actor, false);
+		if (actor.parent != null) {
+			if (actor.parent == this) return;
+			actor.parent.removeActor(actor, false);
+		}
 		if (index >= children.size)
 			children.add(actor);
 		else
@@ -281,10 +286,13 @@ public class Group extends Actor implements Cullable {
 		childrenChanged();
 	}
 
-	/** Adds an actor as a child of this group, immediately before another child actor. The actor is first removed from its parent
-	 * group, if any. */
+	/** Adds an actor as a child of this group immediately before another child actor, removing it from its previous parent. If the
+	 * actor is already a child of this group, no changes are made. */
 	public void addActorBefore (Actor actorBefore, Actor actor) {
-		if (actor.parent != null) actor.parent.removeActor(actor, false);
+		if (actor.parent != null) {
+			if (actor.parent == this) return;
+			actor.parent.removeActor(actor, false);
+		}
 		int index = children.indexOf(actorBefore, true);
 		children.insert(index, actor);
 		actor.setParent(this);
@@ -292,10 +300,13 @@ public class Group extends Actor implements Cullable {
 		childrenChanged();
 	}
 
-	/** Adds an actor as a child of this group, immediately after another child actor. The actor is first removed from its parent
-	 * group, if any. */
+	/** Adds an actor as a child of this group immediately after another child actor, removing it from its previous parent. If the
+	 * actor is already a child of this group, no changes are made. */
 	public void addActorAfter (Actor actorAfter, Actor actor) {
-		if (actor.parent != null) actor.parent.removeActor(actor, false);
+		if (actor.parent != null) {
+			if (actor.parent == this) return;
+			actor.parent.removeActor(actor, false);
+		}
 		int index = children.indexOf(actorAfter, true);
 		if (index == children.size)
 			children.add(actor);
@@ -306,7 +317,7 @@ public class Group extends Actor implements Cullable {
 		childrenChanged();
 	}
 
-	/** Calls {@link #removeActor(Actor, boolean)} with true. */
+	/** Removes an actor from this group and unfocuses it. Calls {@link #removeActor(Actor, boolean)} with true. */
 	public boolean removeActor (Actor actor) {
 		return removeActor(actor, true);
 	}
@@ -347,7 +358,8 @@ public class Group extends Actor implements Cullable {
 		clearChildren();
 	}
 
-	/** Returns the first actor found with the specified name. Note this recursively compares the name of every actor in the group. */
+	/** Returns the first actor found with the specified name. Note this recursively compares the name of every actor in the
+	 * group. */
 	public <T extends Actor> T findActor (String name) {
 		Array<Actor> children = this.children;
 		for (int i = 0, n = children.size; i < n; i++)
@@ -385,6 +397,11 @@ public class Group extends Actor implements Cullable {
 		if (firstIndex == -1 || secondIndex == -1) return false;
 		children.swap(firstIndex, secondIndex);
 		return true;
+	}
+
+	/** Returns the child at the specified index. */
+	public Actor getChild (int index) {
+		return children.get(index);
 	}
 
 	/** Returns an ordered list of child actors in this group. */

@@ -18,6 +18,7 @@ package com.badlogic.gdx.files;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.InputStream;
@@ -29,6 +30,24 @@ import com.badlogic.gdx.Files.FileType;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public class FileHandle {
+	protected File file;
+	protected FileType type;
+
+	protected FileHandle () {
+	}
+
+	public FileHandle (String fileName) {
+	}
+
+	public FileHandle (File file) {
+	}
+
+	protected FileHandle (String fileName, FileType type) {
+	}
+
+	protected FileHandle (File file, FileType type) {
+	}
+
 	public String path () {
 		throw new GdxRuntimeException("Stub");
 	}
@@ -271,6 +290,18 @@ public class FileHandle {
 	 * @throw GdxRuntimeException if this file handle is a {@link FileType#Classpath} or {@link FileType#Internal} file. */
 	public boolean deleteDirectory () {
 		throw new GdxRuntimeException("Stub");
+	}
+
+	/** Deletes all children of this directory, recursively.
+	 * @throws GdxRuntimeException if this file handle is a {@link FileType#Classpath} or {@link FileType#Internal} file. */
+	public void emptyDirectory () {
+		throw new GdxRuntimeException("Not available on GWT");
+	}
+
+	/** Deletes all children of this directory, recursively. Optionally preserving the folder structure.
+	 * @throws GdxRuntimeException if this file handle is a {@link FileType#Classpath} or {@link FileType#Internal} file. */
+	public void emptyDirectory (boolean preserveTree) {
+		throw new GdxRuntimeException("Not available on GWT");
 	}
 
 	/** Copies this file or directory to the specified file or directory. If this handle is a file, then 1) if the destination is a

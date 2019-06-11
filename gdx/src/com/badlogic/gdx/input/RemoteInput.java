@@ -97,22 +97,28 @@ public class RemoteInput implements Runnable, Input {
 
 			if (processor != null) {
 				if (touchEvent != null) {
-					touchX[touchEvent.pointer] = touchEvent.x;
-					touchY[touchEvent.pointer] = touchEvent.y;
 					switch (touchEvent.type) {
 					case TouchEvent.TOUCH_DOWN:
+						deltaX[touchEvent.pointer] = 0;
+						deltaY[touchEvent.pointer] = 0;
 						processor.touchDown(touchEvent.x, touchEvent.y, touchEvent.pointer, Input.Buttons.LEFT);
 						isTouched[touchEvent.pointer] = true;
 						justTouched = true;
 						break;
 					case TouchEvent.TOUCH_UP:
+						deltaX[touchEvent.pointer] = 0;
+						deltaY[touchEvent.pointer] = 0;
 						processor.touchUp(touchEvent.x, touchEvent.y, touchEvent.pointer, Input.Buttons.LEFT);
 						isTouched[touchEvent.pointer] = false;
 						break;
 					case TouchEvent.TOUCH_DRAGGED:
+						deltaX[touchEvent.pointer] = touchEvent.x - touchX[touchEvent.pointer];
+						deltaY[touchEvent.pointer] = touchEvent.y - touchY[touchEvent.pointer];
 						processor.touchDragged(touchEvent.x, touchEvent.y, touchEvent.pointer);
 						break;
 					}
+					touchX[touchEvent.pointer] = touchEvent.x;
+					touchY[touchEvent.pointer] = touchEvent.y;
 				}
 				if (keyEvent != null) {
 					switch (keyEvent.type) {
@@ -139,15 +145,25 @@ public class RemoteInput implements Runnable, Input {
 				}
 			} else {
 				if (touchEvent != null) {
-					touchX[touchEvent.pointer] = touchEvent.x;
-					touchY[touchEvent.pointer] = touchEvent.y;
-					if (touchEvent.type == TouchEvent.TOUCH_DOWN) {
+					switch(touchEvent.type) {
+					case TouchEvent.TOUCH_DOWN:
+						deltaX[touchEvent.pointer] = 0;
+						deltaY[touchEvent.pointer] = 0;
 						isTouched[touchEvent.pointer] = true;
 						justTouched = true;
-					}
-					if (touchEvent.type == TouchEvent.TOUCH_UP) {
+						break;
+					case TouchEvent.TOUCH_UP:
+						deltaX[touchEvent.pointer] = 0;
+						deltaY[touchEvent.pointer] = 0;
 						isTouched[touchEvent.pointer] = false;
+						break;
+					case TouchEvent.TOUCH_DRAGGED:
+						deltaX[touchEvent.pointer] = touchEvent.x - touchX[touchEvent.pointer];
+						deltaY[touchEvent.pointer] = touchEvent.y - touchY[touchEvent.pointer];
+						break;
 					}
+					touchX[touchEvent.pointer] = touchEvent.x;
+					touchY[touchEvent.pointer] = touchEvent.y;
 				}
 				if (keyEvent != null) {
 					if (keyEvent.type == KeyEvent.KEY_DOWN) {
@@ -169,9 +185,12 @@ public class RemoteInput implements Runnable, Input {
 		}
 	}
 
+	private static final int MAX_TOUCHES = 20;
+
 	public static int DEFAULT_PORT = 8190;
 	private ServerSocket serverSocket;
 	private float[] accel = new float[3];
+	private float[] gyrate = new float[3];
 	private float[] compass = new float[3];
 	private boolean multiTouch = false;
 	private float remoteWidth = 0;
@@ -182,9 +201,11 @@ public class RemoteInput implements Runnable, Input {
 	boolean[] keys = new boolean[256];
 	boolean keyJustPressed = false;
 	boolean[] justPressedKeys = new boolean[256];
-	int[] touchX = new int[20];
-	int[] touchY = new int[20];
-	boolean isTouched[] = new boolean[20];
+	int[] deltaX = new int[MAX_TOUCHES];
+	int[] deltaY = new int[MAX_TOUCHES];
+	int[] touchX = new int[MAX_TOUCHES];
+	int[] touchY = new int[MAX_TOUCHES];
+	boolean isTouched[] = new boolean[MAX_TOUCHES];
 	boolean justTouched = false;
 	InputProcessor processor = null;
 	private final int port;
@@ -256,6 +277,11 @@ public class RemoteInput implements Runnable, Input {
 					case RemoteSender.SIZE:
 						remoteWidth = in.readFloat();
 						remoteHeight = in.readFloat();
+						break;	
+					case RemoteSender.GYRO:
+						gyrate[0] = in.readFloat();
+						gyrate[1] = in.readFloat();
+						gyrate[2] = in.readFloat();
 						break;
 					case RemoteSender.KEY_DOWN:
 						keyEvent = new KeyEvent();
@@ -321,6 +347,26 @@ public class RemoteInput implements Runnable, Input {
 	public float getAccelerometerZ () {
 		return accel[2];
 	}
+	
+	@Override
+	public float getGyroscopeX () {
+		return gyrate[0];
+	}
+
+	@Override
+	public float getGyroscopeY () {
+		return gyrate[1];
+	}
+
+	@Override
+	public float getGyroscopeZ () {
+		return gyrate[2];
+	}
+
+	@Override
+	public int getMaxPointers () {
+		return MAX_TOUCHES;
+	}
 
 	@Override
 	public int getX () {
@@ -358,11 +404,26 @@ public class RemoteInput implements Runnable, Input {
 	}
 
 	@Override
+	public float getPressure () {
+		return getPressure(0);
+	}
+
+	@Override
+	public float getPressure (int pointer) {
+		return isTouched(pointer) ? 1 : 0;
+	}
+
+	@Override
 	public boolean isButtonPressed (int button) {
 		if (button != Buttons.LEFT) return false;
 		for (int i = 0; i < isTouched.length; i++)
 			if (isTouched[i]) return true;
 		return false;
+	}
+
+	@Override
+	public boolean isButtonJustPressed(int button) {
+		return button == Buttons.LEFT && justTouched;
 	}
 
 	@Override
@@ -446,6 +507,15 @@ public class RemoteInput implements Runnable, Input {
 		return false;
 	}
 
+	@Override
+	public void setCatchKey (int keycode, boolean catchKey) {
+
+	}
+
+	@Override
+	public boolean isCatchKey (int keycode) {
+		return false;
+	}
 
 	@Override
 	public void setInputProcessor (InputProcessor processor) {
@@ -492,23 +562,22 @@ public class RemoteInput implements Runnable, Input {
 
 	@Override
 	public int getDeltaX () {
-		// TODO Auto-generated method stub
-		return 0;
+		return deltaX[0];
 	}
 
 	@Override
 	public int getDeltaX (int pointer) {
-		return 0;
+		return deltaX[pointer];
 	}
 
 	@Override
 	public int getDeltaY () {
-		return 0;
+		return deltaY[0];
 	}
 
 	@Override
 	public int getDeltaY (int pointer) {
-		return 0;
+		return deltaY[pointer];
 	}
 
 	@Override

@@ -46,24 +46,25 @@ public class IntSet {
 
 	private IntSetIterator iterator1, iterator2;
 
-	/** Creates a new sets with an initial capacity of 32 and a load factor of 0.8. This set will hold 25 items before growing the
-	 * backing table. */
+	/** Creates a new set with an initial capacity of 51 and a load factor of 0.8. */
 	public IntSet () {
-		this(32, 0.8f);
+		this(51, 0.8f);
 	}
 
-	/** Creates a new set with a load factor of 0.8. This set will hold initialCapacity * 0.8 items before growing the backing
-	 * table. */
+	/** Creates a new set with a load factor of 0.8.
+	 * @param initialCapacity If not a power of two, it is increased to the next nearest power of two. */
 	public IntSet (int initialCapacity) {
 		this(initialCapacity, 0.8f);
 	}
 
-	/** Creates a new set with the specified initial capacity and load factor. This set will hold initialCapacity * loadFactor items
-	 * before growing the backing table. */
+	/** Creates a new set with the specified initial capacity and load factor. This set will hold initialCapacity items before
+	 * growing the backing table.
+	 * @param initialCapacity If not a power of two, it is increased to the next nearest power of two. */
 	public IntSet (int initialCapacity, float loadFactor) {
 		if (initialCapacity < 0) throw new IllegalArgumentException("initialCapacity must be >= 0: " + initialCapacity);
+		initialCapacity = MathUtils.nextPowerOfTwo((int)Math.ceil(initialCapacity / loadFactor));
 		if (initialCapacity > 1 << 30) throw new IllegalArgumentException("initialCapacity is too large: " + initialCapacity);
-		capacity = MathUtils.nextPowerOfTwo(initialCapacity);
+		capacity = initialCapacity;
 
 		if (loadFactor <= 0) throw new IllegalArgumentException("loadFactor must be > 0: " + loadFactor);
 		this.loadFactor = loadFactor;
@@ -77,13 +78,13 @@ public class IntSet {
 		keyTable = new int[capacity + stashCapacity];
 	}
 
-	/** Creates a new map identical to the specified map. */
-	public IntSet (IntSet map) {
-		this(map.capacity, map.loadFactor);
-		stashSize = map.stashSize;
-		System.arraycopy(map.keyTable, 0, keyTable, 0, map.keyTable.length);
-		size = map.size;
-		hasZeroValue = map.hasZeroValue;
+	/** Creates a new set identical to the specified set. */
+	public IntSet (IntSet set) {
+		this((int)Math.floor(set.capacity * set.loadFactor), set.loadFactor);
+		stashSize = set.stashSize;
+		System.arraycopy(set.keyTable, 0, keyTable, 0, set.keyTable.length);
+		size = set.size;
+		hasZeroValue = set.hasZeroValue;
 	}
 
 	/** Returns true if the key was not already in the set. */
@@ -138,7 +139,7 @@ public class IntSet {
 	}
 
 	public void addAll (IntArray array) {
-		addAll(array, 0, array.size);
+		addAll(array.items, 0, array.size);
 	}
 
 	public void addAll (IntArray array, int offset, int length) {
@@ -261,7 +262,7 @@ public class IntSet {
 		if (stashSize == stashCapacity) {
 			// Too many pushes occurred and the stash is full, increase the table size.
 			resize(capacity << 1);
-			add(key);
+			addResize(key);
 			return;
 		}
 		// Store key in the stash.
@@ -323,6 +324,16 @@ public class IntSet {
 		if (index < lastIndex) keyTable[index] = keyTable[lastIndex];
 	}
 
+	/** Returns true if the set has one or more items. */
+	public boolean notEmpty () {
+		return size > 0;
+	}
+
+	/** Returns true if the set is empty. */
+	public boolean isEmpty () {
+		return size == 0;
+	}
+
 	/** Reduces the size of the backing arrays to be the specified capacity or less. If the capacity is already less, nothing is
 	 * done. If the set contains more items than the specified capacity, the next highest power of two capacity is used instead. */
 	public void shrink (int maximumCapacity) {
@@ -333,7 +344,7 @@ public class IntSet {
 		resize(maximumCapacity);
 	}
 
-	/** Clears the map and reduces the size of the backing arrays to be the specified capacity if they are larger. */
+	/** Clears the set and reduces the size of the backing arrays to be the specified capacity if they are larger. */
 	public void clear (int maximumCapacity) {
 		if (capacity <= maximumCapacity) {
 			clear();
@@ -385,8 +396,9 @@ public class IntSet {
 	/** Increases the size of the backing array to accommodate the specified number of additional items. Useful before adding many
 	 * items to avoid multiple backing array resizes. */
 	public void ensureCapacity (int additionalCapacity) {
+		if (additionalCapacity < 0) throw new IllegalArgumentException("additionalCapacity must be >= 0: " + additionalCapacity);
 		int sizeNeeded = size + additionalCapacity;
-		if (sizeNeeded >= threshold) resize(MathUtils.nextPowerOfTwo((int)(sizeNeeded / loadFactor)));
+		if (sizeNeeded >= threshold) resize(MathUtils.nextPowerOfTwo((int)Math.ceil(sizeNeeded / loadFactor)));
 	}
 
 	private void resize (int newSize) {
@@ -436,6 +448,7 @@ public class IntSet {
 		IntSet other = (IntSet)obj;
 		if (other.size != size) return false;
 		if (other.hasZeroValue != hasZeroValue) return false;
+		int[] keyTable = this.keyTable;
 		for (int i = 0, n = capacity + stashSize; i < n; i++)
 			if (keyTable[i] != EMPTY && !other.contains(keyTable[i])) return false;
 		return true;
@@ -467,8 +480,8 @@ public class IntSet {
 		return buffer.toString();
 	}
 
-	/** Returns an iterator for the keys in the set. Remove is supported. Note that the same iterator instance is returned each time
-	 * this method is called. Use the {@link IntSetIterator} constructor for nested or multithreaded iteration. */
+	/** Returns an iterator for the keys in the set. Remove is supported. Note that the same iterator instance is returned each
+	 * time this method is called. Use the {@link IntSetIterator} constructor for nested or multithreaded iteration. */
 	public IntSetIterator iterator () {
 		if (iterator1 == null) {
 			iterator1 = new IntSetIterator(this);

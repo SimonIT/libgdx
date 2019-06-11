@@ -44,12 +44,12 @@ public interface Vector<T extends Vector<T>> {
 	 * @see #len2() */
 	T limit2 (float limit2);
 
-	/** Sets the length of this vector. Does nothing is this vector is zero.
+	/** Sets the length of this vector. Does nothing if this vector is zero.
 	 * @param len desired length for this vector
 	 * @return this vector for chaining */
 	T setLength (float len);
 
-	/** Sets the length of this vector, based on the square of the desired length. Does nothing is this vector is zero.
+	/** Sets the length of this vector, based on the square of the desired length. Does nothing if this vector is zero.
 	 * <p />
 	 * This method is slightly faster than setLength().
 	 * @param len2 desired square of the length for this vector
@@ -119,6 +119,10 @@ public interface Vector<T extends Vector<T>> {
 	 * @param interpolator An Interpolation object describing the used interpolation method
 	 * @return This vector for chaining. */
 	T interpolate (T target, float alpha, Interpolation interpolator);
+
+	/** Sets this vector to the unit vector with a random direction
+	 * @return This vector for chaining */
+	T setToRandomDirection ();
 
 	/** @return Whether this vector is a unit length vector */
 	boolean isUnit ();

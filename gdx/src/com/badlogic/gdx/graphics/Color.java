@@ -23,18 +23,21 @@ import com.badlogic.gdx.utils.NumberUtils;
  * 
  * @author mzechner */
 public class Color {
-	public static final Color CLEAR = new Color(0, 0, 0, 0);
-	public static final Color BLACK = new Color(0, 0, 0, 1);
-
-	public static final Color WHITE = new Color(0xffffffff);
+	public static final Color WHITE = new Color(1, 1, 1,1);
 	public static final Color LIGHT_GRAY = new Color(0xbfbfbfff);
 	public static final Color GRAY = new Color(0x7f7f7fff);
 	public static final Color DARK_GRAY = new Color(0x3f3f3fff);
-	public static final Color SLATE = new Color(0x708090ff);
+	public static final Color BLACK = new Color(0, 0, 0, 1);
+
+	/** Convenience for frequently used <code>WHITE.toFloatBits()</code> */
+	public static final float WHITE_FLOAT_BITS = WHITE.toFloatBits();
+
+	public static final Color CLEAR = new Color(0, 0, 0, 0);
 
 	public static final Color BLUE = new Color(0, 0, 1, 1);
 	public static final Color NAVY = new Color(0, 0, 0.5f, 1);
 	public static final Color ROYAL = new Color(0x4169e1ff);
+	public static final Color SLATE = new Color(0x708090ff);
 	public static final Color SKY = new Color(0x87ceebff);
 	public static final Color CYAN = new Color(0, 1, 1, 1);
 	public static final Color TEAL = new Color(0, 0.5f, 0.5f, 1);
@@ -48,14 +51,15 @@ public class Color {
 	public static final Color YELLOW = new Color(0xffff00ff);
 	public static final Color GOLD = new Color(0xffd700ff);
 	public static final Color GOLDENROD = new Color(0xdaa520ff);
+	public static final Color ORANGE = new Color(0xffa500ff);
 
 	public static final Color BROWN = new Color(0x8b4513ff);
 	public static final Color TAN = new Color(0xd2b48cff);
 	public static final Color FIREBRICK = new Color(0xb22222ff);
 
 	public static final Color RED = new Color(0xff0000ff);
+	public static final Color SCARLET = new Color(0xff341cff);
 	public static final Color CORAL = new Color(0xff7f50ff);
-	public static final Color ORANGE = new Color(0xffa500ff);
 	public static final Color SALMON = new Color(0xfa8072ff);
 	public static final Color PINK = new Color(0xff69b4ff);
 	public static final Color MAGENTA = new Color(1, 0, 1, 1);
@@ -250,8 +254,8 @@ public class Color {
 		return clamp();
 	}
 
-	/** Linearly interpolates between this color and the target color by t which is in the range [0,1]. The result is stored in this
-	 * color.
+	/** Linearly interpolates between this color and the target color by t which is in the range [0,1]. The result is stored in
+	 * this color.
 	 * @param target The target color
 	 * @param t The interpolation coefficient
 	 * @return This color for chaining. */
@@ -263,8 +267,8 @@ public class Color {
 		return clamp();
 	}
 
-	/** Linearly interpolates between this color and the target color by t which is in the range [0,1]. The result is stored in this
-	 * color.
+	/** Linearly interpolates between this color and the target color by t which is in the range [0,1]. The result is stored in
+	 * this color.
 	 * @param r The red component of the target color
 	 * @param g The green component of the target color
 	 * @param b The blue component of the target color
@@ -304,9 +308,9 @@ public class Color {
 		return result;
 	}
 
-	/** Packs the color components into a 32-bit integer with the format ABGR and then converts it to a float.
-	 * @return the packed color as a 32-bit float
-	 * @see NumberUtils#intToFloatColor(int) */
+	/** Packs the color components into a 32-bit integer with the format ABGR and then converts it to a float. Alpha is compressed
+	 * from 0-255 to 0-254 to avoid using float bits in the NaN range (see {@link NumberUtils#intToFloatColor(int)}).
+	 * @return the packed color as a 32-bit float */
 	public float toFloatBits () {
 		int color = ((int)(255 * a) << 24) | ((int)(255 * b) << 16) | ((int)(255 * g) << 8) | ((int)(255 * r));
 		return NumberUtils.intToFloatColor(color);
@@ -315,14 +319,13 @@ public class Color {
 	/** Packs the color components into a 32-bit integer with the format ABGR.
 	 * @return the packed color as a 32-bit int. */
 	public int toIntBits () {
-		int color = ((int)(255 * a) << 24) | ((int)(255 * b) << 16) | ((int)(255 * g) << 8) | ((int)(255 * r));
-		return color;
+		return ((int)(255 * a) << 24) | ((int)(255 * b) << 16) | ((int)(255 * g) << 8) | ((int)(255 * r));
 	}
 
 	/** Returns the color encoded as hex string with the format RRGGBBAA. */
 	public String toString () {
-		String value = Integer.toHexString(((int)(255 * r) << 24) | ((int)(255 * g) << 16) | ((int)(255 * b) << 8)
-			| ((int)(255 * a)));
+		String value = Integer
+			.toHexString(((int)(255 * r) << 24) | ((int)(255 * g) << 16) | ((int)(255 * b) << 8) | ((int)(255 * a)));
 		while (value.length() < 8)
 			value = "0" + value;
 		return value;
@@ -431,8 +434,8 @@ public class Color {
 		color.b = ((value & 0x0000001F) >>> 0) / 31f;
 	}
 
-	/** Sets the Color components using the specified integer value in the format RGBA4444. This is inverse to the rgba4444(r, g, b,
-	 * a) method.
+	/** Sets the Color components using the specified integer value in the format RGBA4444. This is inverse to the rgba4444(r, g,
+	 * b, a) method.
 	 * 
 	 * @param color The Color to be modified.
 	 * @param value An integer color value in RGBA4444 format. */
@@ -454,8 +457,8 @@ public class Color {
 		color.b = ((value & 0x000000ff)) / 255f;
 	}
 
-	/** Sets the Color components using the specified integer value in the format RGBA8888. This is inverse to the rgba8888(r, g, b,
-	 * a) method.
+	/** Sets the Color components using the specified integer value in the format RGBA8888. This is inverse to the rgba8888(r, g,
+	 * b, a) method.
 	 * 
 	 * @param color The Color to be modified.
 	 * @param value An integer color value in RGBA8888 format. */
@@ -476,6 +479,100 @@ public class Color {
 		color.r = ((value & 0x00ff0000) >>> 16) / 255f;
 		color.g = ((value & 0x0000ff00) >>> 8) / 255f;
 		color.b = ((value & 0x000000ff)) / 255f;
+	}
+
+	/** Sets the Color components using the specified float value in the format ABGB8888.
+	 * @param color The Color to be modified. */
+	public static void abgr8888ToColor (Color color, float value) {
+		int c = NumberUtils.floatToIntColor(value);
+		color.a = ((c & 0xff000000) >>> 24) / 255f;
+		color.b = ((c & 0x00ff0000) >>> 16) / 255f;
+		color.g = ((c & 0x0000ff00) >>> 8) / 255f;
+		color.r = ((c & 0x000000ff)) / 255f;
+	}
+
+	/** Sets the RGB Color components using the specified Hue-Saturation-Value. Note that HSV components are voluntary not clamped
+	 * to preserve high range color and can range beyond typical values.
+	 * @param h The Hue in degree from 0 to 360
+	 * @param s The Saturation from 0 to 1
+	 * @param v The Value (brightness) from 0 to 1
+	 * @return The modified Color for chaining. */
+	public Color fromHsv (float h, float s, float v) {
+		float x = (h / 60f + 6) % 6;
+		int i = (int)x;
+		float f = x - i;
+		float p = v * (1 - s);
+		float q = v * (1 - s * f);
+		float t = v * (1 - s * (1 - f));
+		switch (i) {
+		case 0:
+			r = v;
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = v;
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = v;
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = v;
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = v;
+			break;
+		default:
+			r = v;
+			g = p;
+			b = q;
+		}
+
+		return clamp();
+	}
+
+	/** Sets RGB components using the specified Hue-Saturation-Value. This is a convenient method for
+	 * {@link #fromHsv(float, float, float)}. This is the inverse of {@link #toHsv(float[])}.
+	 * @param hsv The Hue, Saturation and Value components in that order.
+	 * @return The modified Color for chaining. */
+	public Color fromHsv (float[] hsv) {
+		return fromHsv(hsv[0], hsv[1], hsv[2]);
+	}
+
+	/** Extract Hue-Saturation-Value. This is the inverse of {@link #fromHsv(float[])}.
+	 * @param hsv The HSV array to be modified.
+	 * @return HSV components for chaining. */
+	public float[] toHsv (float[] hsv) {
+		float max = Math.max(Math.max(r, g), b);
+		float min = Math.min(Math.min(r, g), b);
+		float range = max - min;
+		if (range == 0) {
+			hsv[0] = 0;
+		} else if (max == r) {
+			hsv[0] = (60 * (g - b) / range + 360) % 360;
+		} else if (max == g) {
+			hsv[0] = 60 * (b - r) / range + 120;
+		} else {
+			hsv[0] = 60 * (r - g) / range + 240;
+		}
+
+		if (max > 0) {
+			hsv[1] = 1 - min / max;
+		} else {
+			hsv[1] = 0;
+		}
+
+		hsv[2] = max;
+
+		return hsv;
 	}
 
 	/** @return a copy of this color */

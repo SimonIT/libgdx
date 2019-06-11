@@ -18,9 +18,11 @@ package com.badlogic.gdx.utils;
 
 import java.util.NoSuchElementException;
 
-/** An {@link ObjectSet} that also stores keys in an {@link Array} using the insertion order. There is some additional overhead for
- * put and remove. {@link #iterator() Iteration} is ordered and faster than an unordered set. Keys can also be accessed and the
- * order changed using {@link #orderedItems()}.
+/** An {@link ObjectSet} that also stores keys in an {@link Array} using the insertion order. {@link #iterator() Iteration} is
+ * ordered and faster than an unordered set. Keys can also be accessed and the order changed using {@link #orderedItems()}. There
+ * is some additional overhead for put and remove. When used for faster iteration versus ObjectSet and the order does not actually
+ * matter, copying during remove can be greatly reduced by setting {@link Array#ordered} to false for
+ * {@link OrderedSet#orderedItems()}.
  * @author Nathan Sweet */
 public class OrderedSet<T> extends ObjectSet<T> {
 	final Array<T> items;
@@ -40,20 +42,38 @@ public class OrderedSet<T> extends ObjectSet<T> {
 		items = new Array(capacity);
 	}
 
-	public OrderedSet (OrderedSet set) {
+	public OrderedSet (OrderedSet<? extends T> set) {
 		super(set);
 		items = new Array(capacity);
 		items.addAll(set.items);
 	}
 
 	public boolean add (T key) {
-		if (!contains(key)) items.add(key);
-		return super.add(key);
+		if (!super.add(key)) return false;
+		items.add(key);
+		return true;
+	}
+
+	public boolean add (T key, int index) {
+		if (!super.add(key)) {
+			items.removeValue(key, true);
+			items.insert(index, key);
+			return false;
+		}
+		items.insert(index, key);
+		return true;
 	}
 
 	public boolean remove (T key) {
+		if (!super.remove(key)) return false;
 		items.removeValue(key, false);
-		return super.remove(key);
+		return true;
+	}
+
+	public T removeIndex (int index) {
+		T key = items.removeIndex(index);
+		super.remove(key);
+		return key;
 	}
 
 	public void clear (int maximumCapacity) {
@@ -89,16 +109,20 @@ public class OrderedSet<T> extends ObjectSet<T> {
 
 	public String toString () {
 		if (size == 0) return "{}";
+		T[] items = this.items.items;
 		StringBuilder buffer = new StringBuilder(32);
 		buffer.append('{');
-		Array<T> keys = this.items;
-		for (int i = 0, n = keys.size; i < n; i++) {
-			T key = keys.get(i);
-			if (i > 0) buffer.append(", ");
-			buffer.append(key);
+		buffer.append(items[0]);
+		for (int i = 1; i < size; i++) {
+			buffer.append(", ");
+			buffer.append(items[i]);
 		}
 		buffer.append('}');
 		return buffer.toString();
+	}
+
+	public String toString (String separator) {
+		return items.toString(separator);
 	}
 
 	static public class OrderedSetIterator<T> extends ObjectSetIterator<T> {
@@ -126,7 +150,7 @@ public class OrderedSet<T> extends ObjectSet<T> {
 		public void remove () {
 			if (nextIndex < 0) throw new IllegalStateException("next must be called before remove.");
 			nextIndex--;
-			set.remove(items.get(nextIndex));
+			((OrderedSet)set).removeIndex(nextIndex);
 		}
 	}
 }

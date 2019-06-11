@@ -32,7 +32,8 @@ import com.badlogic.gdx.math.Vector2;
  * 		Gdx.app.log(&quot;Example&quot;, &quot;touch done at (&quot; + x + &quot;, &quot; + y + &quot;)&quot;);
  * 	}
  * });
- * </pre> */
+ * </pre>
+ */
 public class InputListener implements EventListener {
 	static private final Vector2 tmpCoords = new Vector2();
 
@@ -74,9 +75,10 @@ public class InputListener implements EventListener {
 		return false;
 	}
 
-	/** Called when a mouse button or a finger touch goes down on the actor. If true is returned, this listener will receive all
-	 * touchDragged and touchUp events, even those not over this actor, until touchUp is received. Also when true is returned, the
-	 * event is {@link Event#handle() handled}.
+	/** Called when a mouse button or a finger touch goes down on the actor. If true is returned, this listener will have
+	 * {@link Stage#addTouchFocus(EventListener, Actor, Actor, int, int) touch focus}, so it will receive all touchDragged and
+	 * touchUp events, even those not over this actor, until touchUp is received. Also when true is returned, the event is
+	 * {@link Event#handle() handled}.
 	 * @see InputEvent */
 	public boolean touchDown (InputEvent event, float x, float y, int pointer, int button) {
 		return false;
@@ -88,8 +90,8 @@ public class InputListener implements EventListener {
 	public void touchUp (InputEvent event, float x, float y, int pointer, int button) {
 	}
 
-	/** Called when a mouse button or a finger touch is moved anywhere, but only if touchDown previously returned true for the mouse
-	 * button or touch. The touchDragged event is always {@link Event#handle() handled}.
+	/** Called when a mouse button or a finger touch is moved anywhere, but only if touchDown previously returned true for the
+	 * mouse button or touch. The touchDragged event is always {@link Event#handle() handled}.
 	 * @see InputEvent */
 	public void touchDragged (InputEvent event, float x, float y, int pointer) {
 	}
@@ -130,7 +132,8 @@ public class InputListener implements EventListener {
 		return false;
 	}
 
-	/** Called when a key is typed. When true is returned, the event is {@link Event#handle() handled}. */
+	/** Called when a key is typed. When true is returned, the event is {@link Event#handle() handled}.
+	 * @param character May be 0 for key typed events that don't map to a character (ctrl, shift, etc). */
 	public boolean keyTyped (InputEvent event, char character) {
 		return false;
 	}

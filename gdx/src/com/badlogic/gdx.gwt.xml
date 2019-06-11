@@ -6,6 +6,7 @@
 		<include name="Application.java"/>
 		<include name="ApplicationAdapter.java"/>
 		<include name="ApplicationListener.java"/>
+		<include name="ApplicationLogger.java"/>
 		<include name="Audio.java"/>
 		<include name="Files.java"/>
 		<include name="Game.java"/>
@@ -42,6 +43,7 @@
 		<include name="assets/loaders/MusicLoader.java"/>
 		<include name="assets/loaders/ParticleEffectLoader.java"/>
 		<include name="assets/loaders/PixmapLoader.java"/>
+		<include name="assets/loaders/ShaderProgramLoader.java"/>
 		<include name="assets/loaders/SkinLoader.java"/>
 		<include name="assets/loaders/SoundLoader.java"/>
 		<include name="assets/loaders/SynchronousAssetLoader.java"/>
@@ -49,6 +51,8 @@
 		<include name="assets/loaders/TextureLoader.java"/> <!-- Emulated -->
 		
 	<!-- assets/loaders/resolvers -->		
+		<include name="assets/loaders/resolvers/AbsoluteFileHandleResolver.java"/>
+		<include name="assets/loaders/resolvers/LocalFileHandleResolver.java"/>
 		<include name="assets/loaders/resolvers/ExternalFileHandleResolver.java"/>
 		<include name="assets/loaders/resolvers/InternalFileHandleResolver.java"/>
 		<include name="assets/loaders/resolvers/ClasspathFileHandleResolver.java"/>
@@ -82,6 +86,8 @@
 		<include name="graphics/Pixmap.java"/> <!-- Emulated -->
 		<exclude name="graphics/PixmapIO.java"/> <!-- Reason: No DeflaterOutputStream -->
 		<include name="graphics/Texture.java"/>
+		<exclude name="graphics/TextureArray.java"/> <!-- GLES 3.0 -->
+		<exclude name="graphics/TextureArrayData.java"/> <!-- GLES 3.0 -->
 		<exclude name="graphics/TextureData.java"/> <!-- emulated: TextureData.Factory requires ETC1 -->
 		<include name="graphics/VertexAttribute.java"/>
 		<include name="graphics/VertexAttributes.java"/>
@@ -89,9 +95,11 @@
 	<!-- graphics/g2d -->
 		<include name="graphics/g2d/Animation.java"/>
 		<include name="graphics/g2d/Batch.java"/>
+		<include name="graphics/g2d/PolygonBatch.java"/>
 		<include name="graphics/g2d/BitmapFont.java"/>
 		<include name="graphics/g2d/BitmapFontCache.java"/>
 		<include name="graphics/g2d/CpuSpriteBatch.java"/>
+		<include name="graphics/g2d/DistanceFieldFont.java"/>
 		<exclude name="graphics/g2d/Gdx2DPixmap.java"/> <!-- Reason: JNI -->
 		<include name="graphics/g2d/GlyphLayout.java"/>
 		<include name="graphics/g2d/NinePatch.java"/>
@@ -104,11 +112,11 @@
 		<include name="graphics/g2d/PolygonRegion.java"/>
 		<include name="graphics/g2d/PolygonRegionLoader.java"/>
 		<include name="graphics/g2d/PolygonSprite.java"/>
+		<include name="graphics/g2d/RepeatablePolygonSprite.java"/>
 		<include name="graphics/g2d/PolygonSpriteBatch.java"/>
 		<include name="graphics/g2d/Sprite.java"/>
 		<include name="graphics/g2d/SpriteBatch.java"/>
 		<include name="graphics/g2d/SpriteCache.java"/>
-		<include name="graphics/g2d/TextMarkup.java"/>
 		<include name="graphics/g2d/TextureAtlas.java"/>
 		<include name="graphics/g2d/TextureRegion.java"/>
 		
@@ -119,6 +127,7 @@
 		<include name="graphics/g3d/Material.java"/>
 		<include name="graphics/g3d/Model.java"/>
 		<include name="graphics/g3d/ModelBatch.java"/>
+		<include name="graphics/g3d/ModelCache.java"/>
 		<include name="graphics/g3d/ModelInstance.java"/>
 		<include name="graphics/g3d/Renderable.java"/>
 		<include name="graphics/g3d/RenderableProvider.java"/>
@@ -200,27 +209,45 @@
 		<include name="graphics/g3d/utils/DefaultTextureBinder.java"/>
 		<include name="graphics/g3d/utils/DepthShaderProvider.java"/>
 		<include name="graphics/g3d/utils/FirstPersonCameraController.java"/>
-		<include name="graphics/g3d/utils/GLES10ShaderProvider.java"/>
 		<include name="graphics/g3d/utils/MeshBuilder.java"/>
 		<include name="graphics/g3d/utils/MeshPartBuilder.java"/>
 		<include name="graphics/g3d/utils/ModelBuilder.java"/>
 		<include name="graphics/g3d/utils/RenderableSorter.java"/>
 		<include name="graphics/g3d/utils/RenderContext.java"/>
 		<include name="graphics/g3d/utils/ShaderProvider.java"/>
+		<include name="graphics/g3d/utils/ShapeCache.java"/>
 		<include name="graphics/g3d/utils/TextureBinder.java"/>
 		<include name="graphics/g3d/utils/TextureDescriptor.java"/>
 		<include name="graphics/g3d/utils/TextureProvider.java"/>
 		
+	<!-- graphics/g3d/utils/shapebuilders -->
+		<include name="graphics/g3d/utils/shapebuilders/ArrowShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/BaseShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/BoxShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/CapsuleShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/ConeShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/CylinderShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/EllipseShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/FrustumShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/PatchShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/RenderableShapeBuilder.java"/>
+		<include name="graphics/g3d/utils/shapebuilders/SphereShapeBuilder.java"/>
+
 	<!-- graphics/glutils -->
 		<exclude name="graphics/glutils/ETC1.java"/> <!-- Reason: No ETC1 Support -->
 		<include name="graphics/glutils/ETC1TextureData.java"/>  <!-- Emulated: explodes on construction -->
 		<include name="graphics/glutils/FacedCubemapData.java"/>
+		<exclude name="graphics/glutils/FileTextureArrayData.java"/> <!-- GLES 3.0 -->
 		<include name="graphics/glutils/FileTextureData.java"/> <!-- Emulated: No PixmapIO -->
 		<include name="graphics/glutils/FloatFrameBuffer.java"/>
 		<include name="graphics/glutils/FloatTextureData.java"/>
 		<include name="graphics/glutils/FrameBuffer.java"/>
 		<include name="graphics/glutils/FrameBufferCubemap.java"/>
 		<include name="graphics/glutils/GLFrameBuffer.java"/>
+		<include name="graphics/glutils/GLOnlyTextureData.java"/>
+		<include name="graphics/glutils/GLVersion.java"/>
+		<include name="graphics/glutils/HdpiMode.java"/>
+		<include name="graphics/glutils/HdpiUtils.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer10.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer20.java"/>
@@ -228,6 +255,8 @@
 		<include name="graphics/glutils/IndexBufferObject.java"/> <!-- Emulated -->
 		<include name="graphics/glutils/IndexBufferObjectSubData.java"/>
 		<include name="graphics/glutils/IndexData.java"/>
+		<include name="graphics/glutils/InstanceData.java"/>
+		<include name="graphics/glutils/InstanceBufferObject.java"/>  <!-- Emulated -->
 		<exclude name="graphics/glutils/KTXTextureData.java"/>  <!-- Rely on ETC1 -->
 		<include name="graphics/glutils/MipMapGenerator.java"/>
 		<include name="graphics/glutils/PixmapTextureData.java"/>
@@ -240,8 +269,9 @@
 		<include name="graphics/glutils/VertexData.java"/>
 
 	<!-- graphics/profiling -->
-		<include name="graphics/profiling/GL20Profiler.java"/>
-		<include name="graphics/profiling/GL30Profiler.java"/>
+		<include name="graphics/profiling/GL20Interceptor.java"/>
+		<include name="graphics/profiling/GL30Interceptor.java"/>
+		<include name="graphics/profiling/GLInterceptor.java"/>
 		<include name="graphics/profiling/GLProfiler.java"/>
 		<include name="graphics/profiling/GLErrorListener.java"/> <!-- Emulated -->
 						
@@ -254,6 +284,7 @@
 		<include name="maps/ImageResolver.java"/>
 		<include name="maps/Map.java"/>
 		<include name="maps/MapLayer.java"/>
+		<include name="maps/MapGroupLayer.java"/>
 		<include name="maps/MapLayers.java"/>
 		<include name="maps/MapObject.java"/>
 		<include name="maps/MapObjects.java"/>
@@ -362,7 +393,7 @@
 	<!-- utils -->
 		<include name="utils/Array.java"/> <!-- Emulated: Reflection -->
 		<include name="utils/ArrayMap.java"/> <!-- Emulated: Reflection -->
-		<exclude name="utils/AtomicQueue.java"/> <!-- Reason: No atomic support -->
+		<include name="utils/AtomicQueue.java"/>
 		<include name="utils/Base64Coder.java"/>
 		<include name="utils/BaseJsonReader.java"/>
 		<include name="utils/BinaryHeap.java"/>
@@ -378,6 +409,7 @@
 		<include name="utils/DelayedRemovalArray.java"/>
 		<include name="utils/Disposable.java"/>
 		<include name="utils/FloatArray.java"/>
+		<include name="utils/FlushablePool.java"/>
 		<exclude name="utils/GdxBuild.java"/> <!-- Reason: Natives -->
 		<exclude name="utils/GdxNativesLoader.java"/> <!-- Reason: Natives -->
 		<include name="utils/GdxRuntimeException.java"/>
@@ -411,10 +443,11 @@
 		<include name="utils/Pools.java"/>
 		<include name="utils/Predicate.java"/>
 		<include name="utils/PropertiesUtils.java"/>
+		<include name="utils/Queue.java"/>
 		<include name="utils/QuickSelect.java"/>
 		<include name="utils/ReflectionPool.java"/>
 		<include name="utils/Scaling.java"/>
-		<exclude name="utils/ScreenUtils.java"/> <!-- Reason: Type mismatch Buffer->ByteBuffer -->
+		<include name="utils/ScreenUtils.java"/>
 		<include name="utils/Select.java"/>
 		<include name="utils/SerializationException.java"/> <!-- Emulated: Reflection -->
 		<exclude name="utils/SharedLibraryLoader.java"/> <!-- Reason: Natives -->

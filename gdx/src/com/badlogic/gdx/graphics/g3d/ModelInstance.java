@@ -17,7 +17,6 @@
 package com.badlogic.gdx.graphics.g3d;
 
 import com.badlogic.gdx.graphics.g3d.model.Animation;
-import com.badlogic.gdx.graphics.g3d.model.MeshPart;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.model.NodeAnimation;
 import com.badlogic.gdx.graphics.g3d.model.NodeKeyframe;
@@ -129,16 +128,15 @@ public class ModelInstance implements RenderableProvider {
 		boolean parentTransform, boolean mergeTransform, boolean shareKeyframes) {
 		this.model = model;
 		this.transform = transform == null ? new Matrix4() : transform;
-		nodePartBones.clear();
 		Node copy, node = model.getNode(nodeId, recursive);
-		this.nodes.add(copy = copyNode(node));
+		this.nodes.add(copy = node.copy());
 		if (mergeTransform) {
 			this.transform.mul(parentTransform ? node.globalTransform : node.localTransform);
 			copy.translation.set(0, 0, 0);
 			copy.rotation.idt();
 			copy.scale.set(1, 1, 1);
 		} else if (parentTransform && copy.hasParent()) this.transform.mul(node.getParent().globalTransform);
-		setBones();
+		invalidate();
 		copyAnimations(model.animations, shareKeyframes);
 		calculateTransforms();
 	}
@@ -220,134 +218,132 @@ public class ModelInstance implements RenderableProvider {
 		return new ModelInstance(this);
 	}
 
-	private ObjectMap<NodePart, ArrayMap<Node, Matrix4>> nodePartBones = new ObjectMap<NodePart, ArrayMap<Node, Matrix4>>();
-
 	private void copyNodes (Array<Node> nodes) {
-		nodePartBones.clear();
 		for (int i = 0, n = nodes.size; i < n; ++i) {
 			final Node node = nodes.get(i);
-			this.nodes.add(copyNode(node));
+			this.nodes.add(node.copy());
 		}
-		setBones();
+		invalidate();
 	}
 
 	private void copyNodes (Array<Node> nodes, final String... nodeIds) {
-		nodePartBones.clear();
 		for (int i = 0, n = nodes.size; i < n; ++i) {
 			final Node node = nodes.get(i);
 			for (final String nodeId : nodeIds) {
 				if (nodeId.equals(node.id)) {
-					this.nodes.add(copyNode(node));
+					this.nodes.add(node.copy());
 					break;
 				}
 			}
 		}
-		setBones();
+		invalidate();
 	}
 
 	private void copyNodes (Array<Node> nodes, final Array<String> nodeIds) {
-		nodePartBones.clear();
 		for (int i = 0, n = nodes.size; i < n; ++i) {
 			final Node node = nodes.get(i);
 			for (final String nodeId : nodeIds) {
 				if (nodeId.equals(node.id)) {
-					this.nodes.add(copyNode(node));
+					this.nodes.add(node.copy());
 					break;
 				}
 			}
 		}
-		setBones();
+		invalidate();
 	}
 
-	private void setBones () {
-		for (ObjectMap.Entry<NodePart, ArrayMap<Node, Matrix4>> e : nodePartBones.entries()) {
-			if (e.key.invBoneBindTransforms == null)
-				e.key.invBoneBindTransforms = new ArrayMap<Node, Matrix4>(true, e.value.size, Node.class, Matrix4.class);
-			e.key.invBoneBindTransforms.clear();
-
-			for (final ObjectMap.Entry<Node, Matrix4> b : e.value.entries())
-				e.key.invBoneBindTransforms.put(getNode(b.key.id), b.value); // Share the inv bind matrix with the model
-
-			e.key.bones = new Matrix4[e.value.size];
-			for (int i = 0; i < e.key.bones.length; i++)
-				e.key.bones[i] = new Matrix4();
-		}
-	}
-
-	private Node copyNode (Node node) {
-		Node copy = new Node();
-		copy.id = node.id;
-		copy.inheritTransform = node.inheritTransform;
-		copy.translation.set(node.translation);
-		copy.rotation.set(node.rotation);
-		copy.scale.set(node.scale);
-		copy.localTransform.set(node.localTransform);
-		copy.globalTransform.set(node.globalTransform);
-		for (NodePart nodePart : node.parts) {
-			copy.parts.add(copyNodePart(nodePart));
-		}
-		for (Node child : node.getChildren()) {
-			copy.addChild(copyNode(child));
-		}
-		return copy;
-	}
-
-	private NodePart copyNodePart (NodePart nodePart) {
-		NodePart copy = new NodePart();
-		copy.meshPart = new MeshPart();
-		copy.meshPart.id = nodePart.meshPart.id;
-		copy.meshPart.indexOffset = nodePart.meshPart.indexOffset;
-		copy.meshPart.numVertices = nodePart.meshPart.numVertices;
-		copy.meshPart.primitiveType = nodePart.meshPart.primitiveType;
-		copy.meshPart.mesh = nodePart.meshPart.mesh;
-
-		if (nodePart.invBoneBindTransforms != null) nodePartBones.put(copy, nodePart.invBoneBindTransforms);
-
-		final int index = materials.indexOf(nodePart.material, false);
-		if (index < 0)
-			materials.add(copy.material = nodePart.material.copy());
-		else
-			copy.material = materials.get(index);
-
-		return copy;
-	}
-
-	private void copyAnimations (final Iterable<Animation> source, boolean shareKeyframes) {
-		for (final Animation anim : source) {
-			Animation animation = new Animation();
-			animation.id = anim.id;
-			animation.duration = anim.duration;
-			for (final NodeAnimation nanim : anim.nodeAnimations) {
-				final Node node = getNode(nanim.node.id);
-				if (node == null) continue;
-				NodeAnimation nodeAnim = new NodeAnimation();
-				nodeAnim.node = node;
-				if (shareKeyframes) {
-					nodeAnim.translation = nanim.translation;
-					nodeAnim.rotation = nanim.rotation;
-					nodeAnim.scaling = nanim.scaling;
-				} else {
-					if (nanim.translation != null) {
-						nodeAnim.translation = new Array<NodeKeyframe<Vector3>>();
-						for (final NodeKeyframe<Vector3> kf : nanim.translation)
-							nodeAnim.translation.add(new NodeKeyframe<Vector3>(kf.keytime, kf.value));
-					}
-					if (nanim.rotation != null) {
-						nodeAnim.rotation = new Array<NodeKeyframe<Quaternion>>();
-						for (final NodeKeyframe<Quaternion> kf : nanim.rotation)
-							nodeAnim.rotation.add(new NodeKeyframe<Quaternion>(kf.keytime, kf.value));
-					}
-					if (nanim.scaling != null) {
-						nodeAnim.scaling = new Array<NodeKeyframe<Vector3>>();
-						for (final NodeKeyframe<Vector3> kf : nanim.scaling)
-							nodeAnim.scaling.add(new NodeKeyframe<Vector3>(kf.keytime, kf.value));
-					}
+	/** Makes sure that each {@link NodePart} of the {@link Node} and its sub-nodes, doesn't reference a node outside this node
+	 * tree and that all materials are listed in the {@link #materials} array. */
+	private void invalidate (Node node) {
+		for (int i = 0, n = node.parts.size; i < n; ++i) {
+			NodePart part = node.parts.get(i);
+			ArrayMap<Node, Matrix4> bindPose = part.invBoneBindTransforms;
+			if (bindPose != null) {
+				for (int j = 0; j < bindPose.size; ++j) {
+					bindPose.keys[j] = getNode(bindPose.keys[j].id);
 				}
-				if (nodeAnim.translation != null || nodeAnim.rotation != null || nodeAnim.scaling != null)
-					animation.nodeAnimations.add(nodeAnim);
 			}
-			if (animation.nodeAnimations.size > 0) animations.add(animation);
+			if (!materials.contains(part.material, true)) {
+				final int midx = materials.indexOf(part.material, false);
+				if (midx < 0)
+					materials.add(part.material = part.material.copy());
+				else
+					part.material = materials.get(midx);
+			}
 		}
+		for (int i = 0, n = node.getChildCount(); i < n; ++i) {
+			invalidate(node.getChild(i));
+		}
+	}
+
+	/** Makes sure that each {@link NodePart} of each {@link Node} doesn't reference a node outside this node tree and that all
+	 * materials are listed in the {@link #materials} array. */
+	private void invalidate () {
+		for (int i = 0, n = nodes.size; i < n; ++i) {
+			invalidate(nodes.get(i));
+		}
+	}
+
+	/** Copy source animations to this ModelInstance
+	 * @param source Iterable collection of source animations {@link Animation}*/
+	public void copyAnimations (final Iterable<Animation> source) {
+		for (final Animation anim : source) {
+			copyAnimation(anim, defaultShareKeyframes);
+		}
+	}
+
+	/** Copy source animations to this ModelInstance
+	 * @param source Iterable collection of source animations {@link Animation}
+	 * @param shareKeyframes Shallow copy of {@link NodeKeyframe}'s if it's true, otherwise make a deep copy.*/
+	public void copyAnimations (final Iterable<Animation> source, boolean shareKeyframes) {
+		for (final Animation anim : source) {
+			copyAnimation(anim, shareKeyframes);
+		}
+	}
+
+	/** Copy the source animation to this ModelInstance
+	 * @param sourceAnim The source animation {@link Animation}*/
+	public void copyAnimation(Animation sourceAnim){
+		copyAnimation(sourceAnim, defaultShareKeyframes);
+	}
+
+	/** Copy the source animation to this ModelInstance
+	 * @param sourceAnim The source animation {@link Animation}
+	 * @param shareKeyframes Shallow copy of {@link NodeKeyframe}'s if it's true, otherwise make a deep copy.*/
+	public void copyAnimation(Animation sourceAnim, boolean shareKeyframes){
+		Animation animation = new Animation();
+		animation.id = sourceAnim.id;
+		animation.duration = sourceAnim.duration;
+		for (final NodeAnimation nanim : sourceAnim.nodeAnimations) {
+			final Node node = getNode(nanim.node.id);
+			if (node == null) continue;
+			NodeAnimation nodeAnim = new NodeAnimation();
+			nodeAnim.node = node;
+			if (shareKeyframes) {
+				nodeAnim.translation = nanim.translation;
+				nodeAnim.rotation = nanim.rotation;
+				nodeAnim.scaling = nanim.scaling;
+			} else {
+				if (nanim.translation != null) {
+					nodeAnim.translation = new Array<NodeKeyframe<Vector3>>();
+					for (final NodeKeyframe<Vector3> kf : nanim.translation)
+						nodeAnim.translation.add(new NodeKeyframe<Vector3>(kf.keytime, kf.value));
+				}
+				if (nanim.rotation != null) {
+					nodeAnim.rotation = new Array<NodeKeyframe<Quaternion>>();
+					for (final NodeKeyframe<Quaternion> kf : nanim.rotation)
+						nodeAnim.rotation.add(new NodeKeyframe<Quaternion>(kf.keytime, kf.value));
+				}
+				if (nanim.scaling != null) {
+					nodeAnim.scaling = new Array<NodeKeyframe<Vector3>>();
+					for (final NodeKeyframe<Vector3> kf : nanim.scaling)
+						nodeAnim.scaling.add(new NodeKeyframe<Vector3>(kf.keytime, kf.value));
+				}
+			}
+			if (nodeAnim.translation != null || nodeAnim.rotation != null || nodeAnim.scaling != null)
+				animation.nodeAnimations.add(nodeAnim);
+		}
+		if (animation.nodeAnimations.size > 0) animations.add(animation);
 	}
 
 	/** Traverses the Node hierarchy and collects {@link Renderable} instances for every node with a graphical representation.
@@ -434,7 +430,7 @@ public class ModelInstance implements RenderableProvider {
 	/** @param id The ID of the animation to fetch (case sensitive).
 	 * @return The {@link Animation} with the specified id, or null if not available. */
 	public Animation getAnimation (final String id) {
-		return getAnimation(id, true);
+		return getAnimation(id, false);
 	}
 
 	/** @param id The ID of the animation to fetch.

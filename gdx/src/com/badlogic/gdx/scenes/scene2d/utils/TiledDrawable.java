@@ -16,6 +16,7 @@
 
 package com.badlogic.gdx.scenes.scene2d.utils;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -23,6 +24,10 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 /** Draws a {@link TextureRegion} repeatedly to fill the area, instead of stretching it.
  * @author Nathan Sweet */
 public class TiledDrawable extends TextureRegionDrawable {
+	static private final Color temp = new Color();
+
+	private final Color color = new Color(1, 1, 1, 1);
+
 	public TiledDrawable () {
 		super();
 	}
@@ -36,6 +41,10 @@ public class TiledDrawable extends TextureRegionDrawable {
 	}
 
 	public void draw (Batch batch, float x, float y, float width, float height) {
+		Color batchColor = batch.getColor();
+		temp.set(batchColor);
+		batch.setColor(batchColor.mul(color));
+
 		TextureRegion region = getRegion();
 		float regionWidth = region.getRegionWidth(), regionHeight = region.getRegionHeight();
 		int fullX = (int)(width / regionWidth), fullY = (int)(height / regionHeight);
@@ -78,5 +87,26 @@ public class TiledDrawable extends TextureRegionDrawable {
 				x += regionWidth;
 			}
 		}
+
+		batch.setColor(temp);
+	}
+
+	public void draw (Batch batch, float x, float y, float originX, float originY, float width, float height, float scaleX,
+		float scaleY, float rotation) {
+		throw new UnsupportedOperationException();
+	}
+
+	public Color getColor () {
+		return color;
+	}
+
+	public TiledDrawable tint (Color tint) {
+		TiledDrawable drawable = new TiledDrawable(this);
+		drawable.color.set(tint);
+		drawable.setLeftWidth(getLeftWidth());
+		drawable.setRightWidth(getRightWidth());
+		drawable.setTopHeight(getTopHeight());
+		drawable.setBottomHeight(getBottomHeight());
+		return drawable;
 	}
 }

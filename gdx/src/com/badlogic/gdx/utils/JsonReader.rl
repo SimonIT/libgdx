@@ -264,7 +264,7 @@ public class JsonReader implements BaseJsonReader {
 					}
 				}
 				p--;
-				while (data[p] == ' ')
+				while (Character.isSpace(data[p]))
 					p--;
 			}
 			action quotedChars {
@@ -290,8 +290,8 @@ public class JsonReader implements BaseJsonReader {
 
 			comment = ('//' | '/*') @comment;
 			ws = [\r\n\t ] | comment;
-			ws2 = [\r\t ] | comment;
-			comma = ',' | ('\n' ws* ','?);
+			ws2 = [\t ] | comment;
+			comma = ',' | ([\r\n] ws* ','?);
 			quotedString = '"' @quotedChars %string '"';
 			nameString = quotedString | ^[":,}/\r\n\t ] >unquotedChars %string;
 			valueString = quotedString | ^[":,{[\]/\r\n\t ] >unquotedChars %string;
@@ -317,8 +317,9 @@ public class JsonReader implements BaseJsonReader {
 			int lineNumber = 1;
 			for (int i = 0; i < p; i++)
 				if (data[i] == '\n') lineNumber++;
+			int start = Math.max(0, p - 32);
 			throw new SerializationException("Error parsing JSON on line " + lineNumber + " near: "
-				+ new String(data, p, Math.min(256, pe - p)), parseRuntimeEx);
+				+ new String(data, start, p - start) + "*ERROR*" + new String(data, p, Math.min(64, pe - p)), parseRuntimeEx);
 		} else if (elements.size != 0) {
 			JsonValue element = elements.peek();
 			elements.clear();
@@ -338,12 +339,14 @@ public class JsonReader implements BaseJsonReader {
 	private final Array<JsonValue> lastChild = new Array(8);
 	private JsonValue root, current;
 
+	/** @param name May be null. */
 	private void addChild (String name, JsonValue child) {
 		child.setName(name);
 		if (current == null) {
 			current = child;
 			root = child;
 		} else if (current.isArray() || current.isObject()) {
+			child.parent = current;
 			if (current.size == 0)
 				current.child = child;
 			else {
@@ -357,6 +360,7 @@ public class JsonReader implements BaseJsonReader {
 			root = current;
 	}
 
+	/** @param name May be null. */
 	protected void startObject (String name) {
 		JsonValue value = new JsonValue(ValueType.object);
 		if (current != null) addChild(name, value);
@@ -364,6 +368,7 @@ public class JsonReader implements BaseJsonReader {
 		current = value;
 	}
 
+	/** @param name May be null. */
 	protected void startArray (String name) {
 		JsonValue value = new JsonValue(ValueType.array);
 		if (current != null) addChild(name, value);

@@ -19,13 +19,11 @@ package com.badlogic.gdx.tests.gwt;
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.Input.TextInputListener;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -53,13 +51,17 @@ import com.badlogic.gdx.tests.Box2DCharacterControllerTest;
 import com.badlogic.gdx.tests.Box2DTest;
 import com.badlogic.gdx.tests.Box2DTestCollection;
 import com.badlogic.gdx.tests.BufferUtilsTest;
+import com.badlogic.gdx.tests.ClipboardTest;
+import com.badlogic.gdx.tests.ColorTest;
 import com.badlogic.gdx.tests.ComplexActionTest;
 import com.badlogic.gdx.tests.CustomShaderSpriteBatchTest;
 import com.badlogic.gdx.tests.DecalTest;
 import com.badlogic.gdx.tests.EdgeDetectionTest;
 import com.badlogic.gdx.tests.FilterPerformanceTest;
 import com.badlogic.gdx.tests.FrameBufferTest;
+import com.badlogic.gdx.tests.FramebufferToTextureTest;
 import com.badlogic.gdx.tests.GLProfilerErrorTest;
+import com.badlogic.gdx.tests.GWTLossyPremultipliedAlphaTest;
 import com.badlogic.gdx.tests.GestureDetectorTest;
 import com.badlogic.gdx.tests.GroupCullingTest;
 import com.badlogic.gdx.tests.GroupFadeTest;
@@ -68,6 +70,7 @@ import com.badlogic.gdx.tests.ImageScaleTest;
 import com.badlogic.gdx.tests.ImageTest;
 import com.badlogic.gdx.tests.IndexBufferObjectShaderTest;
 import com.badlogic.gdx.tests.IntegerBitmapFontTest;
+import com.badlogic.gdx.tests.InterpolationTest;
 import com.badlogic.gdx.tests.InverseKinematicsTest;
 import com.badlogic.gdx.tests.IsometricTileTest;
 import com.badlogic.gdx.tests.KinematicBodyTest;
@@ -81,9 +84,12 @@ import com.badlogic.gdx.tests.MusicTest;
 import com.badlogic.gdx.tests.ParallaxTest;
 import com.badlogic.gdx.tests.ParticleEmitterTest;
 import com.badlogic.gdx.tests.PixelsPerInchTest;
+import com.badlogic.gdx.tests.PixmapPackerTest;
 import com.badlogic.gdx.tests.ProjectiveTextureTest;
+import com.badlogic.gdx.tests.ReflectionCorrectnessTest;
 import com.badlogic.gdx.tests.ReflectionTest;
 import com.badlogic.gdx.tests.RotationTest;
+import com.badlogic.gdx.tests.Scene2dTest;
 import com.badlogic.gdx.tests.ShapeRendererTest;
 import com.badlogic.gdx.tests.SimpleAnimationTest;
 import com.badlogic.gdx.tests.SimpleDecalTest;
@@ -98,15 +104,23 @@ import com.badlogic.gdx.tests.TableTest;
 import com.badlogic.gdx.tests.TextButtonTest;
 import com.badlogic.gdx.tests.TextureAtlasTest;
 import com.badlogic.gdx.tests.TiledMapAtlasAssetManagerTest;
+import com.badlogic.gdx.tests.TiledMapObjectLoadingTest;
 import com.badlogic.gdx.tests.TimeUtilsTest;
 import com.badlogic.gdx.tests.UITest;
 import com.badlogic.gdx.tests.VertexBufferObjectShaderTest;
 import com.badlogic.gdx.tests.VibratorAdvancedTest;
 import com.badlogic.gdx.tests.VibratorTest;
 import com.badlogic.gdx.tests.YDownTest;
+import com.badlogic.gdx.tests.conformance.DisplayModeTest;
+import com.badlogic.gdx.tests.extensions.ControllersTest;
+import com.badlogic.gdx.tests.g3d.ModelCacheTest;
 import com.badlogic.gdx.tests.g3d.ShadowMappingTest;
+import com.badlogic.gdx.tests.net.OpenBrowserExample;
 import com.badlogic.gdx.tests.superkoalio.SuperKoalio;
 import com.badlogic.gdx.tests.utils.GdxTest;
+
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class GwtTestWrapper extends GdxTest {
 	Stage ui;
@@ -131,6 +145,12 @@ public class GwtTestWrapper extends GdxTest {
 		ScrollPane scroll = new ScrollPane(table);
 		container.add(scroll).expand().fill();
 		table.pad(10).defaults().expandX().space(4);
+		Arrays.sort(tests, new Comparator<Instancer>() {
+			@Override
+			public int compare (Instancer o1, Instancer o2) {
+				return o1.instance().getClass().getName().compareTo(o2.instance().getClass().getName());
+			}
+		});
 		for (final Instancer instancer : tests) {
 			table.row();
 			TextButton button = new TextButton(instancer.instance().getClass().getName(), skin);
@@ -147,8 +167,8 @@ public class GwtTestWrapper extends GdxTest {
 			table.add(button).expandX().fillX();
 		}
 		container.row();
-		container.add(new Label("Click on a test to start it, press ESC to close it.", new LabelStyle(font, Color.WHITE))).pad(5,
-			5, 5, 5);
+		container.add(new Label("Click on a test to start it, press ESC to close it.", new LabelStyle(font, Color.WHITE))).pad(5, 5,
+			5, 5);
 
 		Gdx.input = new InputWrapper(Gdx.input) {
 			@Override
@@ -237,6 +257,29 @@ public class GwtTestWrapper extends GdxTest {
 		}
 
 		@Override
+		public float getGyroscopeX () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeX();
+		}
+
+		@Override
+		public float getGyroscopeY () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeY();
+		}
+
+		@Override
+		public float getGyroscopeZ () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeZ();
+		}
+
+		@Override
+		public int getMaxPointers () {
+			return input.getMaxPointers();
+		}
+
+		@Override
 		public int getX () {
 			return input.getX();
 		}
@@ -292,6 +335,16 @@ public class GwtTestWrapper extends GdxTest {
 		}
 
 		@Override
+		public float getPressure () {
+			return input.getPressure();
+		}
+
+		@Override
+		public float getPressure (int pointer) {
+			return input.getPressure(pointer);
+		}
+
+		@Override
 		public boolean isButtonPressed (int button) {
 			return input.isButtonPressed(button);
 		}
@@ -304,6 +357,11 @@ public class GwtTestWrapper extends GdxTest {
 		@Override
 		public boolean isKeyJustPressed (int key) {
 			return input.isKeyJustPressed(key);
+		}
+
+		@Override
+		public boolean isButtonJustPressed (int button) {
+			return false;
 		}
 
 		@Override
@@ -362,7 +420,7 @@ public class GwtTestWrapper extends GdxTest {
 		}
 
 		@Override
-		public boolean isCatchBackKey() {
+		public boolean isCatchBackKey () {
 			return input.isCatchBackKey();
 		}
 
@@ -370,10 +428,20 @@ public class GwtTestWrapper extends GdxTest {
 		public void setCatchMenuKey (boolean catchMenu) {
 			input.setCatchMenuKey(catchMenu);
 		}
-		
+
 		@Override
 		public boolean isCatchMenuKey () {
 			return input.isCatchMenuKey();
+		}
+
+		@Override
+		public void setCatchKey(int keycode, boolean catchKey) {
+			input.setCatchKey(keycode, catchKey);
+		}
+
+		@Override
+		public boolean isCatchKey (int keycode) {
+			return input.isCatchKey(keycode);
 		}
 
 		@Override
@@ -415,7 +483,7 @@ public class GwtTestWrapper extends GdxTest {
 
 		@Override
 		public void setCursorPosition (int x, int y) {
-			setCursorPosition(x, y);
+			input.setCursorPosition(x, y);
 		}
 	}
 
@@ -434,6 +502,10 @@ public class GwtTestWrapper extends GdxTest {
 	}, new Instancer() {
 		public GdxTest instance () {
 			return new ActionSequenceTest();
+		}
+	}, new Instancer() {
+		public GdxTest instance () {
+			return new AlphaTest();
 		}
 	}, new Instancer() {
 		public GdxTest instance () {
@@ -488,8 +560,20 @@ public class GwtTestWrapper extends GdxTest {
 			return new BufferUtilsTest();
 		}
 	}, new Instancer() {
+		public GdxTest instance() {
+			return new ClipboardTest();
+		}
+	}, new Instancer() {
+		public GdxTest instance () {
+			return new ColorTest();
+		}
+	}, new Instancer() {
 		public GdxTest instance () {
 			return new ComplexActionTest();
+		}
+	}, new Instancer() {
+		public GdxTest instance () {
+			return new ControllersTest();
 		}
 	}, new Instancer() {
 		public GdxTest instance () {
@@ -498,6 +582,10 @@ public class GwtTestWrapper extends GdxTest {
 	}, new Instancer() {
 		public GdxTest instance () {
 			return new DecalTest();
+		}
+	}, new Instancer() {
+		public GdxTest instance () {
+			return new DisplayModeTest();
 		}
 	}, new Instancer() {
 		public GdxTest instance () {
@@ -519,6 +607,10 @@ public class GwtTestWrapper extends GdxTest {
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
+				return new FramebufferToTextureTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
 				return new GestureDetectorTest();
 			}
 		}, new Instancer() {
@@ -532,6 +624,10 @@ public class GwtTestWrapper extends GdxTest {
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new GroupFadeTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new GwtWindowModeTest();
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
@@ -555,6 +651,10 @@ public class GwtTestWrapper extends GdxTest {
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
+				return new InterpolationTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
 				return new InverseKinematicsTest();
 			}
 		}, new Instancer() {
@@ -574,7 +674,7 @@ public class GwtTestWrapper extends GdxTest {
 				return new LabelTest();
 			}
 		},
-// new Instancer() {public GdxTest instance(){return new MatrixJNITest();}}, // No purpose
+		// new Instancer() {public GdxTest instance(){return new MatrixJNITest();}}, // No purpose
 		new Instancer() {
 			public GdxTest instance () {
 				return new MeshShaderTest();
@@ -585,12 +685,22 @@ public class GwtTestWrapper extends GdxTest {
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
+				return new ModelCacheTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
 				return new MultitouchTest();
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new MusicTest();
 			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new OpenBrowserExample();
+			}
+// }, new Instancer() { public GdxTest instance () { return new NoncontinuousRenderingTest(); } // FIXME doesn't compile due to
+// the use of Thread
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new ParallaxTest();
@@ -603,8 +713,12 @@ public class GwtTestWrapper extends GdxTest {
 			public GdxTest instance () {
 				return new PixelsPerInchTest();
 			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new PixmapPackerTest();
+			}
 		},
-// new Instancer() {public GdxTest instance(){return new PixmapBlendingTest();}}, // FIXME no idea why this doesn't work
+		// new Instancer() {public GdxTest instance(){return new PixmapBlendingTest();}}, // FIXME no idea why this doesn't work
 		new Instancer() {
 			public GdxTest instance () {
 				return new ProjectiveTextureTest();
@@ -613,11 +727,19 @@ public class GwtTestWrapper extends GdxTest {
 			public GdxTest instance () {
 				return new RotationTest();
 			}
-		},
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new ReflectionCorrectnessTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new Scene2dTest();
+			}
+
 // new Instancer() {public GdxTest instance(){return new RunnablePostTest();}}, // Goes into infinite loop
 // new Instancer() {public GdxTest instance(){return new ScrollPaneTest();}}, // FIXME this messes up stuff, why?
 // new Instancer() {public GdxTest instance(){return new ShaderMultitextureTest();}}, // FIXME fucks up stuff
-		new Instancer() {
+		}, new Instancer() {
 			public GdxTest instance () {
 				return new ShadowMappingTest();
 			}
@@ -662,7 +784,7 @@ public class GwtTestWrapper extends GdxTest {
 				return new StageTest();
 			}
 		},
-// new Instancer() {public GdxTest instance(){return new StagePerformanceTest();}}, // FIXME borks out
+		// new Instancer() {public GdxTest instance(){return new StagePerformanceTest();}}, // FIXME borks out
 		new Instancer() {
 			public GdxTest instance () {
 				return new TableTest();
@@ -678,6 +800,10 @@ public class GwtTestWrapper extends GdxTest {
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new TextureAtlasTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new TiledMapObjectLoadingTest();
 			}
 		}, new Instancer() {
 			public GdxTest instance () {
@@ -714,6 +840,10 @@ public class GwtTestWrapper extends GdxTest {
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new TimeUtilsTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new GWTLossyPremultipliedAlphaTest();
 			}
 		}};
 }

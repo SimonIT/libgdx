@@ -29,6 +29,7 @@ import com.badlogic.gdx.Audio;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.LifecycleListener;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.SnapshotArray;
 
 /** Interface that abstracts the Android application class usages, so that libGDX can be used with a fragment (or with any other
  * client code)
@@ -37,7 +38,7 @@ import com.badlogic.gdx.utils.Array;
  * @author davebaol */
 public interface AndroidApplicationBase extends Application {
 
-	static final int MINIMUM_SDK = 8;
+	static final int MINIMUM_SDK = 9;
 
 	/** The application or activity context
 	 * 
@@ -73,7 +74,7 @@ public interface AndroidApplicationBase extends Application {
 	/** Returns the {@link LifecycleListener} array associated with this {@link AndroidApplicationBase}
 	 * 
 	 * @return the array of {@link LifecycleListener}'s */
-	Array<LifecycleListener> getLifecycleListeners ();
+	SnapshotArray<LifecycleListener> getLifecycleListeners ();
 
 	/** Returns the Window associated with the application
 	 * @return The {@link Window} associated with the application */

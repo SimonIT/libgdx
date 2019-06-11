@@ -16,7 +16,6 @@
 
 package com.badlogic.gdx.tests.android;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import android.app.ListActivity;
@@ -38,6 +37,8 @@ public class AndroidTestStarter extends ListActivity {
 	public void onCreate (Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		GdxTests.tests.add(MatrixTest.class);
+		if (!GdxTests.tests.contains(APKExpansionTest.class))
+			GdxTests.tests.add(APKExpansionTest.class);
 		List<String> testNames = GdxTests.getNames();
 		setListAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, testNames));
 
@@ -51,7 +52,7 @@ public class AndroidTestStarter extends ListActivity {
 		Editor editor = prefs.edit();
 		editor.putInt("index", listView.getFirstVisiblePosition());
 		editor.putInt("top", listView.getChildAt(0) == null ? 0 : listView.getChildAt(0).getTop());
-		editor.commit();
+		editor.apply();
 
 		Object o = this.getListAdapter().getItem(position);
 		String testName = o.toString();
