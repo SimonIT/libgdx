@@ -19,7 +19,6 @@ package com.badlogic.gdx.backends.gwt;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
-import com.badlogic.gdx.Input.Buttons;
 import com.badlogic.gdx.backends.gwt.widgets.TextInputDialogBox;
 import com.badlogic.gdx.backends.gwt.widgets.TextInputDialogBox.TextInputDialogListener;
 import com.badlogic.gdx.utils.IntMap;
@@ -31,11 +30,9 @@ import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.JsArrayNumber;
 import com.google.gwt.dom.client.CanvasElement;
 import com.google.gwt.dom.client.Document;
-import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.dom.client.Touch;
 import com.google.gwt.event.dom.client.KeyCodes;
-import com.google.gwt.logging.client.ConsoleLogHandler;
 
 public class GwtInput implements Input {
 	static final int MAX_TOUCHES = 20;
@@ -259,10 +256,8 @@ public class GwtInput implements Input {
 
 	@Override
 	public void vibrate (long[] pattern, int repeat) {
-		JsArrayNumber jsPattern = (JsArrayNumber)JsArrayNumber.createArray();
-		for (int i = 0; i < pattern.length; i++) {
-			jsPattern.push(pattern[i]);
-		}
+		JsArrayNumber jsPattern = (JsArrayNumber) JsArrayNumber.createArray(pattern.length);
+		for (long l : pattern) jsPattern.push(l);
 		cancelVibrate(); // Always cancel possible current vibration
 		vibrateJSNI(jsPattern, repeat);
 	}
@@ -280,7 +275,7 @@ public class GwtInput implements Input {
 		} else {
 			//Calculate the time of the normal pattern
 			patternTime = 0;
-			for (i = 0; i < patternArg.length; i++) {
+			for (var i = 0; i < patternArg.length; i++) {
 				patternTime += patternArg[i];
 			}
 
@@ -289,7 +284,7 @@ public class GwtInput implements Input {
 			patternArg.splice(1, repeat); //Removes from index 1, n items
 			//Calculate the time of the repeated pattern
 			repeatedPatternTime = 0;
-			for (i = 0; i < patternArg.length; i++) {
+			for (var i = 0; i < patternArg.length; i++) {
 				repeatedPatternTime += patternArg[i];
 			}
 			$wnd.libgdxTimeout = $wnd.setTimeout(function() {
@@ -390,11 +385,7 @@ public class GwtInput implements Input {
 	private native boolean isVibratorAvailableJSNI ()/*-{
 		navigator.vibrate = navigator.vibrate || navigator.webkitVibrate
 				|| navigator.mozVibrate || navigator.msVibrate;
-		if (navigator.vibrate) {
-			return true;
-		} else {
-			return false;
-		}
+		return !!navigator.vibrate;
 	}-*/;
 
 	@Override
