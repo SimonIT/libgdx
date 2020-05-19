@@ -17,8 +17,8 @@
 
 package com.badlogic.gdx.backends.android;
 
-import android.opengl.GLSurfaceView;
 import android.opengl.GLSurfaceView.EGLConfigChooser;
+import android.os.Build;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.View;
@@ -67,6 +67,24 @@ public final class AndroidGraphicsLiveWallpaper extends AndroidGraphics {
 			// This method is invoked via reflection by AndroidLiveWallpaper.onDestroy()
 			public void onDestroy () {
 				onDetachedFromWindow(); // calls GLSurfaceView.mGLThread.requestExitAndWait();
+			}
+
+			@Override
+			public void onPause() {
+				if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P) {
+					Log.d(AndroidLiveWallpaperService.TAG, "Set visibility to gone");
+					setVisibility(View.GONE);
+				}
+				super.onPause();
+			}
+
+			@Override
+			public void onWindowFocusChanged(boolean hasWindowFocus) {
+				super.onWindowFocusChanged(hasWindowFocus);
+				if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P && hasWindowFocus && getVisibility() == View.GONE) {
+					Log.d(AndroidLiveWallpaperService.TAG, "Set visibility to visible");
+					setVisibility(View.VISIBLE);
+				}
 			}
 		};
 
